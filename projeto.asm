@@ -21,12 +21,12 @@ TEC_COL    EQU 0E000H  ; endereço das colunas do teclado (periférico PIN)
 LINHA      EQU 8       ; linha a testar 8 (linha, 1000b)
 MASCARA    EQU 0FH     ; necessário para isolar os bits de 4-7
 
-TEC_MOV_ESQ    EQU 0       ; tecla de movimento do rover para a esquerda
-TEC_MOV_DIR    EQU 2       ; tecla de movimento do rover para a direita
-TEC_DISPARA    EQU 1       ; tecla de disparo do rover
-TEC_INICIO     EQU 0CH     ; tecla de comecar o jogo
-TEC_PAUSA      EQU 0DH     ; tecla de suspender/continuar o jogo
-TEC_FIM        EQU 0EH     ; tecla de terminar o jogo
+TEC_MOV_ESQ    EQU 0       ; tecla de movimento do rover para a esquerda ('0')
+TEC_MOV_DIR    EQU 2       ; tecla de movimento do rover para a direita ('2')
+TEC_DISPARA    EQU 1       ; tecla de disparo do rover ('1')
+TEC_INICIO     EQU 0CH     ; tecla de comecar o jogo ('c')
+TEC_PAUSA      EQU 0DH     ; tecla de suspender/continuar o jogo ('d')
+TEC_FIM        EQU 0EH     ; tecla de terminar o jogo ('e')
 
 ; ******************************************************************************
 ; * CODIGO
