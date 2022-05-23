@@ -4,7 +4,7 @@
 ; * Autores:
 ; * - Afonso Azaruja (103624): afonso.azaruja@tecnico.ulisboa.pt
 ; * - Tomás Macieira ():
-; * - Henrique Soares ():
+; * - Henrique Soares (102927):
 ; *
 ; * Descrição: 
 ; * - 
