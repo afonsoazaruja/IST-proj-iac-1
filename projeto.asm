@@ -28,6 +28,9 @@ TEC_INICIO     EQU 0CH     ; tecla de comecar o jogo ('c')
 TEC_PAUSA      EQU 0DH     ; tecla de suspender/continuar o jogo ('d')
 TEC_FIM        EQU 0EH     ; tecla de terminar o jogo ('e')
 
+MIN_COLUNA  EQU 0   ; número mínimo da coluna
+MAX_COLUNA  EQU 63  ; número máximo da coluna
+
 ; ******************************************************************************
 ; * CODIGO
 ; ******************************************************************************
