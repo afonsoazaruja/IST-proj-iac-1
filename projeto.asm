@@ -40,22 +40,25 @@ MAX_COLUNA		EQU 63          ; número da coluna mais à direita que o objeto pod
 ATRASO			EQU	400H		; atraso para limitar a velocidade de movimento do boneco
 
 LARGURA		    EQU	5	        ; largura do boneco
-COR_PIXEL		EQU	0FF00H      ; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
+COR_PIXEL		EQU	0FFFF00H      ; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
 
 ; *********************************************************************************
 ; * Dados 
 ; *********************************************************************************
-	PLACE       1000H
+PLACE       1000H
 pilha:
-	STACK 100H			; espaço reservado para a pilha 
-						; (200H bytes, pois são 100H words)
-SP_inicial:				; este é o endereço (1200H) com que o SP deve ser 
-						; inicializado. O 1.º end. de retorno será 
-						; armazenado em 11FEH (1200H-2)
+	STACK 100H      ; espaço reservado para a pilha 
+					; (200H bytes, pois são 100H words)
+SP_inicial:			; este é o endereço (1200H) com que o SP deve ser 
+					; inicializado. O 1.º end. de retorno será 
+					; armazenado em 11FEH (1200H-2)
 							
 DEF_BONECO:					; tabela que define o boneco (cor, largura, pixels)
 	WORD		LARGURA
-	WORD		COR_PIXEL, 0, COR_PIXEL, 0, COR_PIXEL		; # # #   as cores podem ser diferentes
+    WORD        0 , 0, COR_PIXEL, 0 , 0                                     ; Definição da 1ª linha da nave 
+	WORD		COR_PIXEL, 0, COR_PIXEL, 0, COR_PIXEL                       ; Definição da 2ª linha da nave
+    WORD		COR_PIXEL, COR_PIXEL, COR_PIXEL, COR_PIXEL, COR_PIXEL       ; Definição da 3ª linha da nave
+    WORD		0, COR_PIXEL, 0, COR_PIXEL, 0                               ; Definição da 4ª linha da nave
 
 ; ******************************************************************************
 ; * CODIGO
