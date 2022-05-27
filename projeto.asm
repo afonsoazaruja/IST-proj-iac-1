@@ -28,23 +28,27 @@ TEC_INICIO     EQU 0CH      ; tecla de comecar o jogo ('c')
 TEC_PAUSA      EQU 0DH      ; tecla de suspender/continuar o jogo ('d')
 TEC_FIM        EQU 0EH      ; tecla de terminar o jogo ('e')
 
+DEFINE_LINHA    		EQU 600AH      ; endereço do comando para definir a linha
+DEFINE_COLUNA   		EQU 600CH      ; endereço do comando para definir a coluna
+DEFINE_PIXEL    		EQU 6012H      ; endereço do comando para escrever um pixel
+APAGA_AVISO     		EQU 6040H      ; endereço do comando para apagar o aviso de nenhum cenário selecionado
+APAGA_ECRÃ	 		    EQU 6002H      ; endereço do comando para apagar todos os pixels já desenhados
+SELECIONA_CENARIO_FUNDO EQU 6042H      ; endereço do comando para selecionar uma imagem de fundo
 
-
-
-
-LINHA        	EQU 25          ; linha do boneco (a meio do ecrã))
-COLUNA			EQU 30          ; coluna do boneco (a meio do ecrã)
+LINHA_ROVER        	EQU 28          ; linha do boneco (a meio do ecrã))
+COLUNA_ROVER			EQU 32          ; coluna do boneco (a meio do ecrã)
 
 MIN_COLUNA		EQU 0		    ; número da coluna mais à esquerda que o objeto pode ocupar
 MAX_COLUNA		EQU 63          ; número da coluna mais à direita que o objeto pode ocupar
 ATRASO			EQU	400H		; atraso para limitar a velocidade de movimento do boneco
 
+ALTURA          EQU 4
 LARGURA		    EQU	5	        ; largura do boneco
-COR_PIXEL		EQU	0FFFF00H      ; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
+COR_PIXEL		EQU	0FFF0H      ; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
 
-; *********************************************************************************
+; ******************************************************************************
 ; * Dados 
-; *********************************************************************************
+; ******************************************************************************
 PLACE       1000H
 pilha:
 	STACK 100H      ; espaço reservado para a pilha 
@@ -54,36 +58,32 @@ SP_inicial:			; este é o endereço (1200H) com que o SP deve ser
 					; armazenado em 11FEH (1200H-2)
 							
 DEF_BONECO:					; tabela que define o boneco (cor, largura, pixels)
-	WORD		LARGURA
-    WORD        0 , 0, COR_PIXEL, 0 , 0                                     ; Definição da 1ª linha da nave 
-	WORD		COR_PIXEL, 0, COR_PIXEL, 0, COR_PIXEL                       ; Definição da 2ª linha da nave
-    WORD		COR_PIXEL, COR_PIXEL, COR_PIXEL, COR_PIXEL, COR_PIXEL       ; Definição da 3ª linha da nave
-    WORD		0, COR_PIXEL, 0, COR_PIXEL, 0                               ; Definição da 4ª linha da nave
+	WORD	LARGURA, ALTURA
+    WORD    0 , 0, COR_PIXEL, 0 , 0                                     ; Definição da 1ª linha da nave 
+	WORD	COR_PIXEL, 0, COR_PIXEL, 0, COR_PIXEL                       ; Definição da 2ª linha da nave
+    WORD    COR_PIXEL, COR_PIXEL, COR_PIXEL, COR_PIXEL, COR_PIXEL       ; Definição da 3ª linha da nave
+    WORD    0, COR_PIXEL, 0, COR_PIXEL, 0                               ; Definição da 4ª linha da nave
+
+POS_ATUAL_ROVER: 
+
 
 ; ******************************************************************************
 ; * CODIGO
 ; ******************************************************************************
 
-PLACE 0
+PLACE 0H
 
 inicio:
-    MOV R2, TEC_LIN    ; endereço da linha do teclado
-    MOV R3, TEC_COL    ; endereço da coluna do teclado
-    MOV R4, DISPLAYS   ; endereço do display
-    MOV R5, MASCARA    ; mascara para tornar bits 4-7 a 0
-    MOV R6, 0          ; contador para saber o numero da linha e coluna
-    MOV R7, 4          ; constante para calcular qual tecla foi pressionada
-
-reset_tecla:
-    MOV R1, LINHA
+    MOV SP, SP_inicial    
+    MOV R1, LINHA      ; linha inicial a analisar
+    MOV R6, 0          ; contador da linha e da coluna
+    MOV R7, 4          ; multiplicador para calcular linha e coluna
 
 espera_tecla:
-    MOVB [R2], R1      ; escrever no periférico de saída, (linha)
-    MOVB R0, [R3]      ; lê o periférico de entrada (coluna)
-    AND R0, R5         ; elimina os bits de 4-7
-    CMP R0, 0          ; se houve tecla pressionada na linha certa
+    MOV R0, 0          ; reset valor de tecla
+    CALL teclado       ; calcula coluna pressionada, regista no R2
+    CMP R2, 0          ; se houve tecla pressionada na linha certa
     JZ linha_depois    ; não há teclado primida? verifica próxima linha
-    MOV R6, 0          ; incializa contador a 0
     JMP calcula_linha  ; se houver tecla primida, obter o valor da linha
 
 linha_depois:
@@ -94,62 +94,73 @@ linha_depois:
 
 calcula_linha:
     SHR R1, 1          ; shift 1 bit para direita até chegar a 0
-    INC R6             ; incrementa o contador para calcular a linha
     CMP R1, 0          ; chegou ao fim?
     JZ mul_tecla       ; se sim, volta para completar a conta
+    INC R0             ; incrementa o contador para calcular a linha
     JMP calcula_linha  ; se não, continua
 
+mul_tecla:
+    ADD R0, R0         ; multiplica por 2
+    ADD R0, R0         ; multiplica por 2 
+
 calcula_coluna:
-    SHR R0, 1          ; shift 1 bit para direita até chegar a 0
-    INC R6             ; incrementa o contador para calcular a coluna 
-    CMP R0, 0          ; chegou ao fim?
-    JZ add_tecla       ; se sim, volta para finalizar a conta
+    SHR R2, 1          ; shift 1 bit para direita até chegar a 0
+    CMP R2, 0          ; chegou ao fim?
+    JZ escolhe_comando ; se chegou ao fim
+    INC R0             ; incrementa o contador para calcular a coluna 
     JMP calcula_coluna ; se não, continua 
 
-mul_tecla:
-    DEC R6             ; decrementar o número da linha pois (0, 1, 2, 3)
-    MOV R1, R6         
-    MUL R1, R7         ; multiplica a linha por 4 --> (n-1)*4
-    MOV R6, 0          ; inicializa o contador a 0, para calcular a coluna
-    JMP calcula_coluna ; obter o valor da coluna
-
-add_tecla:
-    DEC R6             ; decrementar o número da coluna pois (0, 1, 2, 3)
-    ADD R1, R6         ; soma a multiplicação anterior com o número da coluna
-
 escolhe_comando:
-    CMP R1, TEC_MOV_ESQ
+    CMP R0, TEC_MOV_ESQ
     JZ mover_esq            ; se for tecla '0'
-    CMP R1, TEC_MOV_DIR
+    CMP R0, TEC_MOV_DIR
     JZ mover_dir            ; se for tecla '2'
-    CMP R1, TEC_DISPARA     
+    CMP R0, TEC_DISPARA     
     JZ dispara              ; se for tecla '1'
     MOV R11, TEC_INICIO     ; criação de máscara
-    XOR R11, R1             ; se a tecla for filtrada é a tecla correta
+    XOR R11, R0             ; se a tecla for filtrada é a tecla correta
     JZ iniciar_jogo         ; se for tecla 'c'
     MOV R11, TEC_PAUSA      ; atualização de máscara
-    XOR R11, R1             ; se a tecla for filtrada é a tecla correta
+    XOR R11, R0             ; se a tecla for filtrada é a tecla correta
     JZ pausar_jogo          ; se for tecla 'd'
     MOV R11, TEC_FIM        ; atualização de máscara
-    XOR R11, R1             ; se a tecla for filtrada é a tecla correta
+    XOR R11, R0             ; se a tecla for filtrada é a tecla correta
     JZ terminar_jogo        ; se for tecla 'e'
     JMP espera_tecla        ; caso não corresponda a nenhuma tecla
 
 mover_esq:
-    MOV R10, 0
-    JMP reset_tecla
+    MOV	R10, 0			; vai deslocar para a esquerda
+    JMP espera_tecla
 mover_dir:
     MOV R10, 2
-    JMP reset_tecla
+    JMP espera_tecla
 dispara:
     MOV R10, 1
-    JMP reset_tecla
+    JMP espera_tecla
 iniciar_jogo:
     MOV R10, 0CH
-    JMP reset_tecla
+    JMP espera_tecla
 pausar_jogo:
     MOV R10, 0DH
-    JMP reset_tecla
+    JMP espera_tecla
 terminar_jogo:
     MOV R10, 0EH
-    JMP reset_tecla
+    JMP espera_tecla
+
+; ******************************************************************************
+; TECLADO - Faz uma leitura às teclas de uma linha do teclado e retorna o valor 
+;           lido
+; Argumentos:	R6 - linha a testar (em formato 1, 2, 4 ou 8)
+;
+; Retorna: 	R2 - valor lido das colunas do teclado (0, 1, 2, 4, ou 8)	
+; ******************************************************************************
+teclado:
+    PUSH R5
+	MOV  R3, TEC_LIN   ; endereço do periférico das linhas
+	MOV  R4, TEC_COL   ; endereço do periférico das colunas
+	MOV  R5, MASCARA   ; para isolar os 4 bits de menor peso, ao ler as colunas do teclado
+	MOVB [R3], R1      ; escrever no periférico de saída (linhas)
+	MOVB R2, [R4]      ; ler do periférico de entrada (colunas)
+	AND  R2, R5        ; elimina bits para além dos bits 0-3
+	POP R5             ; 
+    RET
