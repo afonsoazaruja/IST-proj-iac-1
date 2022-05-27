@@ -21,15 +21,41 @@ TEC_COL    EQU 0E000H  ; endereço das colunas do teclado (periférico PIN)
 LINHA      EQU 8       ; linha a testar 8 (linha, 1000b)
 MASCARA    EQU 0FH     ; necessário para isolar os bits de 4-7
 
-TEC_MOV_ESQ    EQU 0       ; tecla de movimento do rover para a esquerda ('0')
-TEC_MOV_DIR    EQU 2       ; tecla de movimento do rover para a direita ('2')
-TEC_DISPARA    EQU 1       ; tecla de disparo do rover ('1')
-TEC_INICIO     EQU 0CH     ; tecla de comecar o jogo ('c')
-TEC_PAUSA      EQU 0DH     ; tecla de suspender/continuar o jogo ('d')
-TEC_FIM        EQU 0EH     ; tecla de terminar o jogo ('e')
+TEC_MOV_ESQ    EQU 0        ; tecla de movimento do rover para a esquerda ('0')
+TEC_MOV_DIR    EQU 2        ; tecla de movimento do rover para a direita ('2')
+TEC_DISPARA    EQU 1        ; tecla de disparo do rover ('1')
+TEC_INICIO     EQU 0CH      ; tecla de comecar o jogo ('c')
+TEC_PAUSA      EQU 0DH      ; tecla de suspender/continuar o jogo ('d')
+TEC_FIM        EQU 0EH      ; tecla de terminar o jogo ('e')
 
-MIN_COLUNA  EQU 0   ; número mínimo da coluna
-MAX_COLUNA  EQU 63  ; número máximo da coluna
+
+
+
+
+LINHA        	EQU 25          ; linha do boneco (a meio do ecrã))
+COLUNA			EQU 30          ; coluna do boneco (a meio do ecrã)
+
+MIN_COLUNA		EQU 0		    ; número da coluna mais à esquerda que o objeto pode ocupar
+MAX_COLUNA		EQU 63          ; número da coluna mais à direita que o objeto pode ocupar
+ATRASO			EQU	400H		; atraso para limitar a velocidade de movimento do boneco
+
+LARGURA		    EQU	5	        ; largura do boneco
+COR_PIXEL		EQU	0FF00H      ; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
+
+; *********************************************************************************
+; * Dados 
+; *********************************************************************************
+	PLACE       1000H
+pilha:
+	STACK 100H			; espaço reservado para a pilha 
+						; (200H bytes, pois são 100H words)
+SP_inicial:				; este é o endereço (1200H) com que o SP deve ser 
+						; inicializado. O 1.º end. de retorno será 
+						; armazenado em 11FEH (1200H-2)
+							
+DEF_BONECO:					; tabela que define o boneco (cor, largura, pixels)
+	WORD		LARGURA
+	WORD		COR_PIXEL, 0, COR_PIXEL, 0, COR_PIXEL		; # # #   as cores podem ser diferentes
 
 ; ******************************************************************************
 ; * CODIGO
