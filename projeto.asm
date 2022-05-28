@@ -28,7 +28,7 @@ TEC_INICIO     EQU 0CH      ; tecla de comecar o jogo ('c')
 TEC_PAUSA      EQU 0DH      ; tecla de suspender/continuar o jogo ('d')
 TEC_FIM        EQU 0EH      ; tecla de terminar o jogo ('e')
 
-; ******************************** Definição do MediaCenter ********************************
+; ************************ Definição do MediaCenter ****************************
 
 DEFINE_LINHA    		EQU 600AH      ; endereço do comando para definir a linha
 DEFINE_COLUNA   		EQU 600CH      ; endereço do comando para definir a coluna
@@ -40,7 +40,7 @@ SELECIONA_CENARIO_FUNDO EQU 6042H      ; endereço do comando para selecionar um
 MIN_COLUNA		EQU 0		    ; número da coluna mais à esquerda que o objeto pode ocupar
 MAX_COLUNA		EQU 64         ; número da coluna mais à direita que o objeto pode ocupar
 
-; *******************************************************************************************
+; ******************************************************************************
 
 ATRASO			EQU	2500H		    ; atraso para limitar a velocidade de movimento do boneco
 
@@ -49,7 +49,7 @@ COLUNA_ROVER		EQU 30          ; coluna do boneco
 
 ALTURA_ROVER        EQU 4           ; altura do rover
 LARGURA_ROVER	    EQU	5	        ; largura do rover
-COR_PIXEL_ROVER		EQU	0FFF0H      ; cor do pixel do rover: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
+COR_PIXEL_ROVER		EQU	0FFF0H      ; cor do pixel do rover: vermelho em ARGB
 
 LINHA_MET_BOM       EQU 0           ; linha do meteoro bom
 COLUNA_MET_BOM      EQU 16          ; coluna do meteoro bom
@@ -69,7 +69,7 @@ SP_inicial:			; este é o endereço (1200H) com que o SP deve ser
 					; inicializado. O 1.º end. de retorno será 
 					; armazenado em 11FEH (1200H-2)
 
-; ******************************** Definição ROVER ******************************* 
+; ******************************** Definição ROVER *****************************
 
 DEF_ROVER:					                                                                                ; tabela que define o rover (cor, largura, pixels)
 	WORD	LARGURA_ROVER, ALTURA_ROVER
@@ -81,7 +81,7 @@ DEF_ROVER:					                                                                 
 POS_ROVER: 
     WORD    LINHA_ROVER, COLUNA_ROVER
 
-; ******************************* Definição METEORO BOM ******************************* 
+; ******************************* Definição METEORO BOM ************************
 
 DEF_METEORO_BOM:                                                                                            ; tabela que define o meteoro bom (cor, largura, pixels)
     WORD    LARGURA_METEORO_BOM, ALTURA_METEORO_BOM
@@ -93,6 +93,9 @@ DEF_METEORO_BOM:                                                                
 
 POS_METEORO_BOM:
     WORD    LINHA_MET_BOM, COLUNA_MET_BOM
+; ******************************************************************************
+DISPLAY:
+    WORD    000H
 
 ; ******************************************************************************
 ; * CODIGO
@@ -105,6 +108,7 @@ inicio:
     MOV [APAGA_AVISO], R1	            ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
     MOV [APAGA_ECRÃ], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 	MOV	R0, 0		                    ; cenário de fundo número 0
+    MOV [DISPLAYS], R0                  ; inicializa display a 0
     MOV [SELECIONA_CENARIO_FUNDO], R0	; seleciona o cenário de fundo
     MOV R1, LINHA                       ; linha inicial a analisar
     MOV R6, 0                           ; contador da linha e da coluna
@@ -158,10 +162,10 @@ escolhe_comando:
     JZ dispara              ; se for tecla '1'
     MOV R11, TEC_INICIO     ; criação de máscara
     XOR R11, R0             ; se a tecla for filtrada é a tecla correta
-    JZ iniciar_jogo         ; se for tecla 'c'
+    JZ decrementa           ; se for tecla 'c'
     MOV R11, TEC_PAUSA      ; atualização de máscara
     XOR R11, R0             ; se a tecla for filtrada é a tecla correta
-    JZ pausar_jogo          ; se for tecla 'd'
+    JZ incrementa           ; se for tecla 'd'
     MOV R11, TEC_FIM        ; atualização de máscara
     XOR R11, R0             ; se a tecla for filtrada é a tecla correta
     JZ terminar_jogo        ; se for tecla 'e'
@@ -200,18 +204,48 @@ mover_dir:
     CALL desenha_boneco     ; desenha o rover na nova posição
     JMP espera_tecla        ; vai esperar por uma nova tecla
     JMP espera_tecla
+
 dispara:
     MOV R10, 1
     JMP espera_tecla
-iniciar_jogo:
-    MOV R10, 0CH
+
+decrementa:
+    CALL obter_display  ; obter valor do display
+    CMP R7, 000H        ; verifica se atingi valor mínimo
+    JZ espera_tecla     ; se sim, não faz nada
+    DEC R7              ; decrementa valor
+    MOV [DISPLAY], R7   ; atualiza na memória
+    MOV [DISPLAYS], R7  ; atualiza no display
+    CALL atraso
     JMP espera_tecla
-pausar_jogo:
-    MOV R10, 0DH
+
+incrementa:
+    CALL obter_display
+    CMP R7, 0FFF8H
+    JZ espera_tecla
+    INC R7
+    MOV [DISPLAY], R7
+    MOV [DISPLAYS], R7
+    CALL atraso
     JMP espera_tecla
+
 terminar_jogo:
     MOV R10, 0EH
     JMP espera_tecla
+
+; ****************************************************************************** 
+; ROTINAS
+; ******************************************************************************
+
+; ******************************************************************************
+; OBTER_DISPLAY
+; ******************************************************************************
+obter_display:
+    PUSH R6             
+    MOV R6, [DISPLAY]   ; obtêm valor atual do display
+    MOV R7, R6          ; guarda valor no registo
+    POP R6
+    RET
 
 ; ******************************************************************************
 ; TECLADO - Faz uma leitura às teclas de uma linha do teclado e retorna o valor 
@@ -253,19 +287,19 @@ desenha_boneco:
     ADD R9, 2               ; endereço do 1º pixel
 
 desenha_pixels:       		; desenha os pixels do boneco a partir da tabela
-	MOV	 R3, [R9]			; obtém a cor do próximo pixel do boneco
+	MOV R3, [R9]			; obtém a cor do próximo pixel do boneco
 	CALL escreve_pixel		; escreve cada pixel do boneco
-	ADD	 R9, 2			    ; endereço da cor do próximo pixel (2 porque cada cor de pixel é uma word)
-    ADD  R8, 1              ; próxima coluna
-    SUB  R1, 1			    ; menos uma coluna para tratar
-    JNZ  desenha_pixels     ; continua até percorrer toda a largura do objeto
-    ADD  R7, 1              ; próxima linha
-    MOV  R1, R4             ; reset à largura a percorrer
-    SUB  R8, R4             ; volta à coluna original
-    SUB  R2, 1              ; menos uma linha para tratar
-    JNZ  desenha_pixels     ; continua até percorrer toda a altura do objeto
-	MOV  R2, R5             ; reset à altura a percorrer
-    SUB  R7, R5             ; volta à linha original
+	ADD R9, 2			    ; endereço da cor do próximo pixel (2 porque cada cor de pixel é uma word)
+    ADD R8, 1              ; próxima coluna
+    SUB R1, 1			    ; menos uma coluna para tratar
+    JNZ desenha_pixels     ; continua até percorrer toda a largura do objeto
+    ADD R7, 1              ; próxima linha
+    MOV R1, R4             ; reset à largura a percorrer
+    SUB R8, R4             ; volta à coluna original
+    SUB R2, 1              ; menos uma linha para tratar
+    JNZ desenha_pixels     ; continua até percorrer toda a altura do objeto
+	MOV R2, R5             ; reset à altura a percorrer
+    SUB R7, R5             ; volta à linha original
     POP R5
     POP	R4
 	POP	R3
@@ -333,7 +367,7 @@ apaga_pixels:       		; desenha os pixels do boneco a partir da tabela
 ;
 ; **********************************************************************
 atraso:
-	PUSH	R11
+	PUSH R11
 ciclo_atraso:
 	SUB	R11, 1
 	JNZ	ciclo_atraso
