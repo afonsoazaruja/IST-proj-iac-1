@@ -35,16 +35,23 @@ APAGA_AVISO     		EQU 6040H      ; endereço do comando para apagar o aviso de n
 APAGA_ECRÃ	 		    EQU 6002H      ; endereço do comando para apagar todos os pixels já desenhados
 SELECIONA_CENARIO_FUNDO EQU 6042H      ; endereço do comando para selecionar uma imagem de fundo
 
-LINHA_ROVER        	EQU 28          ; linha do boneco (a meio do ecrã))
-COLUNA_ROVER			EQU 32          ; coluna do boneco (a meio do ecrã)
-
 MIN_COLUNA		EQU 0		    ; número da coluna mais à esquerda que o objeto pode ocupar
 MAX_COLUNA		EQU 63          ; número da coluna mais à direita que o objeto pode ocupar
-ATRASO			EQU	400H		; atraso para limitar a velocidade de movimento do boneco
+ATRASO			EQU	2500H		; atraso para limitar a velocidade de movimento do boneco
 
-ALTURA_ROVER        EQU 4
-LARGURA_ROVER	    EQU	5	        ; largura do boneco
-COR_PIXEL		EQU	0FFF0H      ; cor do pixel: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
+LINHA_ROVER        	EQU 28          ; linha do boneco
+COLUNA_ROVER		EQU 32          ; coluna do boneco
+
+LINHA_MET_BOM       EQU 0           ; linha do meteoro bom
+COLUNA_MET_BOM      EQU 16          ; coluna do meteoro bom
+
+ALTURA_ROVER        EQU 4           ; altura do rover
+LARGURA_ROVER	    EQU	5	        ; largura do rover
+COR_PIXEL_ROVER		EQU	0FFF0H      ; cor do pixel do rover: vermelho em ARGB (opaco e vermelho no máximo, verde e azul a 0)
+
+ALTURA_METEORO_BOM  EQU 5           ; altura do meteoro bom
+LARGURA_METEORO_BOM EQU 5           ; largura do meteoro bom
+COR_PIXEL_MET_BOM   EQU 0F0F0H      ; cor do pixel do meteoro bom: verde
 
 ; ******************************************************************************
 ; * Dados 
@@ -59,13 +66,24 @@ SP_inicial:			; este é o endereço (1200H) com que o SP deve ser
 							
 DEF_ROVER:					; tabela que define o rover (cor, largura, pixels)
 	WORD	LARGURA_ROVER, ALTURA_ROVER
-    WORD    0 , 0, COR_PIXEL, 0 , 0                                     ; Definição da 1ª linha da nave 
-	WORD	COR_PIXEL, 0, COR_PIXEL, 0, COR_PIXEL                       ; Definição da 2ª linha da nave
-    WORD    COR_PIXEL, COR_PIXEL, COR_PIXEL, COR_PIXEL, COR_PIXEL       ; Definição da 3ª linha da nave
-    WORD    0, COR_PIXEL, 0, COR_PIXEL, 0                               ; Definição da 4ª linha da nave
+    WORD    0 , 0, COR_PIXEL_ROVER, 0 , 0                                                               ; Definição da 1ª linha da nave 
+	WORD	COR_PIXEL_ROVER, 0, COR_PIXEL_ROVER, 0, COR_PIXEL_ROVER                                     ; Definição da 2ª linha da nave
+    WORD    COR_PIXEL_ROVER, COR_PIXEL_ROVER, COR_PIXEL_ROVER, COR_PIXEL_ROVER, COR_PIXEL_ROVER         ; Definição da 3ª linha da nave
+    WORD    0, COR_PIXEL_ROVER, 0, COR_PIXEL_ROVER, 0                                                   ; Definição da 4ª linha da nave
 
-POS_ATUAL_ROVER: 
+POS_ROVER: 
     WORD    LINHA_ROVER, COLUNA_ROVER
+
+DEF_METEORO_BOM:
+    WORD    LARGURA_METEORO_BOM, ALTURA_METEORO_BOM
+    WORD    0, COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM, 0
+    WORD    COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM
+    WORD    COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM
+    WORD    COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM
+    WORD    0, COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM, COR_PIXEL_MET_BOM, 0
+
+POS_METEORO_BOM:
+    WORD    LINHA_MET_BOM, COLUNA_MET_BOM
 
 ; ******************************************************************************
 ; * CODIGO
@@ -74,17 +92,22 @@ POS_ATUAL_ROVER:
 PLACE 0H
 
 inicio:
-    MOV SP, SP_inicial    
+    MOV SP, SP_inicial              ; inicializa o Stack Pointer
     MOV [APAGA_AVISO], R1	            ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
     MOV [APAGA_ECRÃ], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 	MOV	R0, 0		                    ; cenário de fundo número 0
     MOV [SELECIONA_CENARIO_FUNDO], R0	; seleciona o cenário de fundo
     MOV R1, LINHA      ; linha inicial a analisar
     MOV R6, 0          ; contador da linha e da coluna
-    MOV R7, [POS_ATUAL_ROVER]      ; linha do rover
-    MOV R8, [POS_ATUAL_ROVER+2]    ; coluna do rover
+    MOV R11, ATRASO
+    MOV R7, [POS_ROVER]      ; linha do rover
+    MOV R8, [POS_ROVER+2]    ; coluna do rover
     MOV R9, DEF_ROVER        ; tabela que define o rover
-    CALL desenha_boneco
+    CALL desenha_boneco      ; desenha o rover
+    MOV R7, [POS_METEORO_BOM]       ; linha do meteoro bom
+    MOV R8, [POS_METEORO_BOM+2]     ; coluna do meteoro bom
+    MOV R9, DEF_METEORO_BOM         ; tabela que define o meteoro bom
+    CALL desenha_boneco             ; desenha o meteoro bom
 
 espera_tecla:
     MOV R0, 0          ; reset valor de tecla
@@ -136,8 +159,20 @@ escolhe_comando:
     JMP espera_tecla        ; caso não corresponda a nenhuma tecla
 
 mover_esq:
-    MOV	R10, 0
-    JMP espera_tecla
+    MOV R7, [POS_ROVER]     ; linha atual do rover
+    MOV R8, [POS_ROVER+2]   ; coluna atual do rover
+    MOV R9, DEF_ROVER       ; tabela que define o rover
+    CMP R8, MIN_COLUNA      ; o rover esta na coluna 0?
+    JZ espera_tecla         ; se estiver, não faz nada
+    CALL apaga_boneco       ; caso contrário, apaga o rover
+    CALL atraso             ; delay de movimento
+    DEC R8                  ; decrementa a coluna
+    MOV [POS_ROVER+2], R8   ; atualiza a coluna em memória
+    ;MOV R7, [POS_ROVER]     ; linha atual do rover
+    MOV R9, DEF_ROVER       ; tabela que define o rover
+    CALL desenha_boneco     ; desenha o rover na nova posição
+    JMP espera_tecla        ; vai esperar por uma nova tecla
+
 mover_dir:
     MOV R10, 2
     JMP espera_tecla
@@ -185,11 +220,12 @@ desenha_boneco:
 	PUSH	R2
 	PUSH	R3
 	PUSH	R4
+    PUSH    R5
     MOV	R1, [R9]			; obtém a largura do boneco
-	MOV R10, R1             ; guarda a largura do boneco
+	MOV R4, R1             ; guarda a largura do boneco
     ADD	R9, 2			    ; endereço da altura do boneco (2 porque a largura é uma word)
     MOV R2, [R9]            ; obtém a altura do boneco
-    MOV R11, R2             ; guarda a altura do boneco
+    MOV R5, R2             ; guarda a altura do boneco
     ADD R9, 2               ; endereço do 1º pixel
 
 desenha_pixels:       		; desenha os pixels do boneco a partir da tabela
@@ -200,12 +236,13 @@ desenha_pixels:       		; desenha os pixels do boneco a partir da tabela
     SUB  R1, 1			; menos uma coluna para tratar
     JNZ  desenha_pixels      ; continua até percorrer toda a largura do objeto
     ADD  R7, 1          ; próxima linha
-    MOV  R1, R10        ; reset à largura a percorrer
-    SUB  R8, R10        ; volta à coluna original
+    MOV  R1, R4        ; reset à largura a percorrer
+    SUB  R8, R4        ; volta à coluna original
     SUB  R2, 1          ; menos uma linha para tratar
     JNZ  desenha_pixels      ; continua até percorrer toda a altura do objeto
-	MOV  R2, R11        ; reset à altura a percorrer
-    SUB  R7, R11        ; volta à linha original
+	MOV  R2, R5        ; reset à altura a percorrer
+    SUB  R7, R5        ; volta à linha original
+    POP R5
     POP	R4
 	POP	R3
 	POP	R2
@@ -224,3 +261,64 @@ escreve_pixel:
 	MOV  [DEFINE_COLUNA], R8		; seleciona a coluna
 	MOV  [DEFINE_PIXEL], R3		; altera a cor do pixel na linha e coluna já selecionadas
 	RET
+
+; **********************************************************************
+; APAGA_BONECO - Apaga um boneco na linha e coluna indicadas
+;			  com a forma definida na tabela indicada.
+; Argumentos:   R7 - linha
+;               R8 - coluna
+;               R9 - tabela que define o boneco
+;
+; **********************************************************************
+apaga_boneco:
+	PUSH	R1
+	PUSH	R2
+	PUSH	R3
+	PUSH	R4
+    PUSH    R5
+    MOV	R1, [R9]			; obtém a largura do boneco
+	MOV R4, R1             ; guarda a largura do boneco
+    ADD	R9, 2			    ; endereço da altura do boneco (2 porque a largura é uma word)
+    MOV R2, [R9]            ; obtém a altura do boneco
+    MOV R5, R2             ; guarda a altura do boneco
+    ADD R9, 2               ; endereço do 1º pixel
+
+apaga_pixels:       		; desenha os pixels do boneco a partir da tabela
+	MOV	 R3, 0			    ; obtém a cor do próximo pixel do boneco
+	CALL escreve_pixel		; escreve cada pixel do boneco
+    ADD  R8, 1               ; próxima coluna
+    SUB  R1, 1			; menos uma coluna para tratar
+    JNZ  apaga_pixels      ; continua até percorrer toda a largura do objeto
+    ADD  R7, 1          ; próxima linha
+    MOV  R1, R4        ; reset à largura a percorrer
+    SUB  R8, R4        ; volta à coluna original
+    SUB  R2, 1          ; menos uma linha para tratar
+    JNZ  apaga_pixels      ; continua até percorrer toda a altura do objeto
+	MOV  R2, R5        ; reset à altura a percorrer
+    SUB  R7, R5        ; volta à linha original
+    POP R5
+    POP	R4
+	POP	R3
+	POP	R2
+	POP	R1
+	RET
+
+; **********************************************************************
+; ATRASO - Executa um ciclo para implementar um atraso.
+; Argumentos:   R11 - valor que define o atraso
+;
+; **********************************************************************
+atraso:
+	PUSH	R11
+ciclo_atraso:
+	SUB	R11, 1
+	JNZ	ciclo_atraso
+	POP	R11
+	RET
+
+; **********************************************************************
+; VERIFICA_LIMITE_ESQUERDA - Verifica se foi atingido o limite
+;       esquerdo do ecrã
+; Argumentos:    R8 - valor da coluna
+;
+; **********************************************************************
