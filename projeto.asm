@@ -112,7 +112,6 @@ inicio:
     MOV [SELECIONA_CENARIO_FUNDO], R0	; seleciona o cenário de fundo
     MOV R1, LINHA                       ; linha inicial a analisar
     MOV R6, 0                           ; contador da linha e da coluna
-    MOV R11, ATRASO
     MOV R7, [POS_ROVER]                 ; linha do rover
     MOV R8, [POS_ROVER+2]               ; coluna do rover
     MOV R9, DEF_ROVER                   ; tabela que define o rover
@@ -368,6 +367,7 @@ apaga_pixels:       		; desenha os pixels do boneco a partir da tabela
 ; **********************************************************************
 atraso:
 	PUSH R11
+    MOV R11, ATRASO
 ciclo_atraso:
 	SUB	R11, 1
 	JNZ	ciclo_atraso
