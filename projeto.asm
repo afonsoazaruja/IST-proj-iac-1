@@ -249,10 +249,6 @@ baixa_meteoro:
     CALL desenha_boneco             ; desenha o meteoro bom na nova posição
     JMP ha_tecla                    ; espera que a tecla deixe de ser premida
 
-terminar_jogo:
-    MOV R10, 0EH
-    JMP espera_tecla
-
 ; ****************************************************************************** 
 ; ROTINAS
 ; ******************************************************************************
