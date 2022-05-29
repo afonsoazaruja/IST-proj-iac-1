@@ -36,16 +36,17 @@ DEFINE_PIXEL    		EQU 6012H      ; endereço do comando para escrever um pixel
 APAGA_AVISO     		EQU 6040H      ; endereço do comando para apagar o aviso de nenhum cenário selecionado
 APAGA_ECRÃ	 		    EQU 6002H      ; endereço do comando para apagar todos os pixels já desenhados
 SELECIONA_CENARIO_FUNDO EQU 6042H      ; endereço do comando para selecionar uma imagem de fundo
+REPRODUZ_SOM            EQU 605AH      ; endereço do comando para reproduzir um som
 
 MIN_COLUNA		EQU 0		    ; número da coluna mais à esquerda que o objeto pode ocupar
 MAX_COLUNA		EQU 64         ; número da coluna mais à direita que o objeto pode ocupar
 
 ; ******************************************************************************
 
-ATRASO			EQU	2500H		    ; atraso para limitar a velocidade de movimento do boneco
+ATRASO			EQU	2500H		    ; atraso para limitar a velocidade de movimento do rover
 
-LINHA_ROVER        	EQU 28          ; linha do boneco
-COLUNA_ROVER		EQU 30          ; coluna do boneco
+LINHA_ROVER        	EQU 28          ; linha do rover
+COLUNA_ROVER		EQU 30          ; coluna do rover
 
 ALTURA_ROVER        EQU 4           ; altura do rover
 LARGURA_ROVER	    EQU	5	        ; largura do rover
@@ -236,6 +237,8 @@ incrementa:
     JMP  ha_tecla        ; espera que a tecla deixe de ser premida
 
 baixa_meteoro:
+    MOV R0, 0                       ; som a reproduzir    
+    MOV [REPRODUZ_SOM], R0          ; reproduz som
     MOV R7, [POS_METEORO_BOM]       ; linha atual do meteoro bom
     MOV R8, [POS_METEORO_BOM+2]     ; coluna atual do meteoro bom
     MOV R9, DEF_METEORO_BOM         ; tabela que define o meteoro bom
