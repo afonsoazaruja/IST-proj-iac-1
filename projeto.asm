@@ -21,12 +21,11 @@ TEC_COL    EQU 0E000H  ; endereço das colunas do teclado (periférico PIN)
 LINHA      EQU 8       ; linha a testar 8 (linha, 1000b)
 MASCARA    EQU 0FH     ; necessário para isolar os bits de 4-7
 
-TEC_MOV_ESQ    EQU 0        ; tecla de movimento do rover para a esquerda ('0')
-TEC_MOV_DIR    EQU 2        ; tecla de movimento do rover para a direita ('2')
-TEC_DISPARA    EQU 1        ; tecla de disparo do rover ('1')
-TEC_INICIO     EQU 0CH      ; tecla de comecar o jogo ('c')
-TEC_PAUSA      EQU 0DH      ; tecla de suspender/continuar o jogo ('d')
-TEC_FIM        EQU 0EH      ; tecla de terminar o jogo ('e')
+TEC_MOV_ESQ          EQU 0           ; tecla de movimento do rover para a esquerda ('0')
+TEC_MOV_DIR          EQU 2           ; tecla de movimento do rover para a direita ('2')
+TEC_DEC_DISPLAY      EQU 0CH         ; tecla para decrementar o display ('c')
+TEC_INC_DISPLAY      EQU 0DH         ; tecla para incrementar o display ('d')
+TEC_BAIXA_MET        EQU 0EH         ; tecla para fazer descer o meteoro ('e')
 
 ; ************************ Definição do MediaCenter ****************************
 
@@ -35,11 +34,12 @@ DEFINE_COLUNA   		EQU 600CH      ; endereço do comando para definir a coluna
 DEFINE_PIXEL    		EQU 6012H      ; endereço do comando para escrever um pixel
 APAGA_AVISO     		EQU 6040H      ; endereço do comando para apagar o aviso de nenhum cenário selecionado
 APAGA_ECRÃ	 		    EQU 6002H      ; endereço do comando para apagar todos os pixels já desenhados
-SELECIONA_CENARIO_FUNDO EQU 6042H      ; endereço do comando para selecionar uma imagem de fundo
+SELEC_CENARIO_FUNDO     EQU 6042H      ; endereço do comando para selecionar uma imagem de fundo
 REPRODUZ_SOM            EQU 605AH      ; endereço do comando para reproduzir um som
 
-MIN_COLUNA		EQU 0		    ; número da coluna mais à esquerda que o objeto pode ocupar
+MIN_COLUNA		EQU 0		   ; número da coluna mais à esquerda que o objeto pode ocupar
 MAX_COLUNA		EQU 64         ; número da coluna mais à direita que o objeto pode ocupar
+MAX_LINHA       EQU 32         ; número da linha máxima
 
 ; ******************************************************************************
 
@@ -95,7 +95,7 @@ DEF_METEORO_BOM:                                                                
 POS_METEORO_BOM:
     WORD    LINHA_MET_BOM, COLUNA_MET_BOM
 ; ******************************************************************************
-DISPLAY:
+VALOR_DISPLAY:
     WORD    000H
 
 ; ******************************************************************************
@@ -110,7 +110,7 @@ inicio:
     MOV [APAGA_ECRÃ], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 	MOV	R0, 0		                    ; cenário de fundo número 0
     MOV [DISPLAYS], R0                  ; inicializa display a 0
-    MOV [SELECIONA_CENARIO_FUNDO], R0	; seleciona o cenário de fundo
+    MOV [SELEC_CENARIO_FUNDO], R0	; seleciona o cenário de fundo
     MOV R1, LINHA                       ; linha inicial a analisar
     MOV R6, 0                           ; contador da linha e da coluna
     MOV R7, [POS_ROVER]                 ; linha do rover
@@ -131,7 +131,7 @@ espera_tecla:
     JMP calcula_linha  ; se houver tecla primida, obter o valor da linha
 
 ha_tecla:              ; neste ciclo espera-se até NENHUMA tecla estar premida
-    MOV  R1, R3         ; linha lida anteriormente
+    MOV  R1, R3        ; linha lida anteriormente
     CALL teclado       ; calcula coluna
     CMP  R2, 0         ; há tecla premida?
     JNZ  ha_tecla      ; se ainda houver uma tecla premida, espera até não haver
@@ -163,21 +163,19 @@ calcula_coluna:
 
 escolhe_comando:
     CMP R0, TEC_MOV_ESQ
-    JZ  mover_esq           ; se for tecla '0'
+    JZ  mover_esq                ; se for tecla '0'
     CMP R0, TEC_MOV_DIR
-    JZ  mover_dir           ; se for tecla '2'
-    CMP R0, TEC_DISPARA     
-    JZ  dispara             ; se for tecla '1'
-    MOV R11, TEC_INICIO     ; criação de máscara
-    XOR R11, R0             ; se a tecla for filtrada é a tecla correta
-    JZ  decrementa          ; se for tecla 'c'
-    MOV R11, TEC_PAUSA      ; atualização de máscara
-    XOR R11, R0             ; se a tecla for filtrada é a tecla correta
-    JZ  incrementa          ; se for tecla 'd'
-    MOV R11, TEC_FIM        ; atualização de máscara
-    XOR R11, R0             ; se a tecla for filtrada é a tecla correta
-    JZ  baixa_meteoro       ; se for tecla 'e'
-    JMP espera_tecla        ; caso não corresponda a nenhuma tecla
+    JZ  mover_dir                ; se for tecla '2'
+    MOV R11, TEC_DEC_DISPLAY     ; criação de máscara
+    XOR R11, R0                  ; se a tecla for filtrada é a tecla correta
+    JZ  decrementa               ; se for tecla 'c'
+    MOV R11, TEC_INC_DISPLAY     ; atualização de máscara
+    XOR R11, R0                  ; se a tecla for filtrada é a tecla correta
+    JZ  incrementa               ; se for tecla 'd'
+    MOV R11, TEC_BAIXA_MET       ; atualização de máscara
+    XOR R11, R0                  ; se a tecla for filtrada é a tecla correta
+    JZ  baixa_meteoro            ; se for tecla 'e'
+    JMP espera_tecla             ; caso não corresponda a nenhuma tecla
 
 mover_esq:
     MOV R7, [POS_ROVER]     ; linha atual do rover
@@ -186,12 +184,11 @@ mover_esq:
     CMP R8, MIN_COLUNA      ; o rover esta na coluna 0?
     JZ espera_tecla         ; se estiver, não faz nada
     CALL apaga_boneco       ; caso contrário, apaga o rover
-    CALL atraso             ; delay de movimento
     DEC R8                  ; decrementa a coluna
     MOV [POS_ROVER+2], R8   ; atualiza a coluna em memória
-    ;MOV R7, [POS_ROVER]     ; linha atual do rover
     MOV R9, DEF_ROVER       ; tabela que define o rover
     CALL desenha_boneco     ; desenha o rover na nova posição
+    CALL atraso             ; delay de movimento
     JMP espera_tecla        ; vai esperar por uma nova tecla
 
 mover_dir:
@@ -204,47 +201,44 @@ mover_dir:
     JZ espera_tecla         ; se estiver, não faz nada
     ADD R8, -5              ; Restora para a posição do pixel mais à esquerda
     CALL apaga_boneco       ; caso contrário, apaga o rover
-    CALL atraso             ; delay de movimento
     INC R8                  ; aumenta a coluna
     MOV [POS_ROVER+2], R8   ; atualiza a coluna em memória
-    ;MOV R7, [POS_ROVER]     ; linha atual do rover
     MOV R9, DEF_ROVER       ; tabela que define o rover
     CALL desenha_boneco     ; desenha o rover na nova posição
+    CALL atraso             ; delay de movimento
     JMP espera_tecla        ; vai esperar por uma nova tecla
 
-dispara:
-    MOV R10, 1
-    JMP espera_tecla
-
 decrementa:
-    CALL obter_display   ; obter valor do display
-    CMP  R7, 000H        ; verifica se atingi valor mínimo
-    JZ   espera_tecla    ; se sim, não faz nada
-    DEC  R7              ; decrementa valor
-    MOV  [DISPLAY], R7   ; atualiza na memória
-    MOV  [DISPLAYS], R7  ; atualiza no display      
-    CALL atraso          ; atrasa a diminuição
-    JMP  ha_tecla        ; espera que a tecla deixe de ser premida
+    CALL obter_display          ; obter valor do display
+    CMP  R7, 000H               ; verifica se atingi valor mínimo
+    JZ   espera_tecla           ; se sim, não faz nada
+    DEC  R7                     ; decrementa valor
+    MOV  [VALOR_DISPLAY], R7    ; atualiza na memória
+    MOV  [DISPLAYS], R7         ; atualiza no display      
+    JMP  ha_tecla               ; espera que a tecla deixe de ser premida
 
 incrementa:
-    CALL obter_display   ; obter valor do display
-    CMP  R7, 0FFF8H      ; verifica se atingi valor máximo
-    JZ   espera_tecla    ; se sim, não faz nada
-    INC  R7              ; incrementa valor
-    MOV  [DISPLAY], R7   ; atualiza na memória
-    MOV  [DISPLAYS], R7  ; atualiza no display
-    CALL atraso          ; atrasa o aumento
-    JMP  ha_tecla        ; espera que a tecla deixe de ser premida
+    CALL obter_display         ; obter valor do display
+    CMP  R7, 0FFF8H            ; verifica se atingi valor máximo
+    JZ   espera_tecla          ; se sim, não faz nada
+    INC  R7                    ; incrementa valor
+    MOV  [VALOR_DISPLAY], R7   ; atualiza na memória
+    MOV  [DISPLAYS], R7        ; atualiza no display
+    JMP  ha_tecla              ; espera que a tecla deixe de ser premida
 
 baixa_meteoro:
-    MOV R0, 0                       ; som a reproduzir    
+    MOV R0, 0                       ; som a reproduzir
     MOV [REPRODUZ_SOM], R0          ; reproduz som
     MOV R7, [POS_METEORO_BOM]       ; linha atual do meteoro bom
     MOV R8, [POS_METEORO_BOM+2]     ; coluna atual do meteoro bom
     MOV R9, DEF_METEORO_BOM         ; tabela que define o meteoro bom
     CALL apaga_boneco               ; apaga o meteoro bom
     INC R7                          ; incrementa a linha
+    MOV R8, MAX_LINHA               ; linha máxima
+    CMP R7, R8                      ; compara a linha atual do meteoro com a linha máxima
+    JNN ha_tecla                    ; se a linha ainda não for a máxima, vai desenhar de novo
     MOV [POS_METEORO_BOM], R7       ; atualiza a linha em memória
+    MOV R8, [POS_METEORO_BOM+2]     ; coluna atual do meteoro bom
     MOV R9, DEF_METEORO_BOM         ; tabela que define o meteoro bom
     CALL desenha_boneco             ; desenha o meteoro bom na nova posição
     JMP ha_tecla                    ; espera que a tecla deixe de ser premida
@@ -259,10 +253,10 @@ baixa_meteoro:
 ; Retorna:      R7 - valor lido do display
 ; ******************************************************************************
 obter_display:
-    PUSH R6             
-    MOV R6, [DISPLAY]   ; obtêm valor atual do display
-    MOV R7, R6          ; guarda valor no registo
-    POP R6
+    PUSH    R6             
+    MOV R6, [VALOR_DISPLAY]   ; obtêm valor atual do display
+    MOV R7, R6                ; guarda valor no registo
+    POP     R6
     RET
 
 ; ******************************************************************************
@@ -273,18 +267,18 @@ obter_display:
 ; Retorna: 	R2 - valor lido das colunas do teclado (0, 1, 2, 4, ou 8)	
 ; ******************************************************************************
 teclado:
-    PUSH R3
-    PUSH R4
-    PUSH R5
+    PUSH    R3
+    PUSH    R4
+    PUSH    R5
 	MOV  R3, TEC_LIN   ; endereço do periférico das linhas
 	MOV  R4, TEC_COL   ; endereço do periférico das colunas
 	MOV  R5, MASCARA   ; para isolar os 4 bits de menor peso, ao ler as colunas do teclado
 	MOVB [R3], R1      ; escrever no periférico de saída (linhas)
 	MOVB R2, [R4]      ; ler do periférico de entrada (colunas)
 	AND  R2, R5        ; elimina bits para além dos bits 0-3
-	POP  R5
-    POP  R4
-    POP  R3             
+	POP     R5
+    POP     R4
+    POP     R3             
     RET
 
 ; **********************************************************************
@@ -312,21 +306,21 @@ desenha_pixels:       		; desenha os pixels do boneco a partir da tabela
 	MOV R3, [R9]			; obtém a cor do próximo pixel do boneco
 	CALL escreve_pixel		; escreve cada pixel do boneco
 	ADD R9, 2			    ; endereço da cor do próximo pixel (2 porque cada cor de pixel é uma word)
-    ADD R8, 1              ; próxima coluna
+    ADD R8, 1               ; próxima coluna
     SUB R1, 1			    ; menos uma coluna para tratar
-    JNZ desenha_pixels     ; continua até percorrer toda a largura do objeto
-    ADD R7, 1              ; próxima linha
-    MOV R1, R4             ; reset à largura a percorrer
-    SUB R8, R4             ; volta à coluna original
-    SUB R2, 1              ; menos uma linha para tratar
-    JNZ desenha_pixels     ; continua até percorrer toda a altura do objeto
-	MOV R2, R5             ; reset à altura a percorrer
-    SUB R7, R5             ; volta à linha original
-    POP R5
-    POP	R4
-	POP	R3
-	POP	R2
-	POP	R1
+    JNZ desenha_pixels      ; continua até percorrer toda a largura do objeto
+    ADD R7, 1               ; próxima linha
+    MOV R1, R4              ; reset à largura a percorrer
+    SUB R8, R4              ; volta à coluna original
+    SUB R2, 1               ; menos uma linha para tratar
+    JNZ desenha_pixels      ; continua até percorrer toda a altura do objeto
+	MOV R2, R5              ; reset à altura a percorrer
+    SUB R7, R5              ; volta à linha original
+    POP     R5
+    POP 	R4
+	POP	    R3
+	POP	    R2
+	POP	    R1
 	RET
 
 ; **********************************************************************
@@ -376,11 +370,11 @@ apaga_pixels:       		; desenha os pixels do boneco a partir da tabela
     JNZ  apaga_pixels       ; continua até percorrer toda a altura do objeto
 	MOV  R2, R5             ; reset à altura a percorrer
     SUB  R7, R5             ; volta à linha original
-    POP R5
-    POP	R4
-	POP	R3
-	POP	R2
-	POP	R1
+    POP     R5
+    POP	    R4
+	POP	    R3
+	POP	    R2
+	POP	    R1
 	RET
 
 ; **********************************************************************
@@ -389,10 +383,10 @@ apaga_pixels:       		; desenha os pixels do boneco a partir da tabela
 ;
 ; **********************************************************************
 atraso:
-	PUSH R11
+	PUSH    R11
     MOV R11, ATRASO
 ciclo_atraso:
 	SUB	R11, 1
 	JNZ	ciclo_atraso
-	POP	R11
+	POP	    R11
 	RET
