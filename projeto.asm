@@ -128,9 +128,9 @@ espera_tecla:
 
 ha_tecla:              ; neste ciclo espera-se até nenhuma tecla estar premida
     CALL teclado       ; calcula coluna
-    CMP  R2, 0         ; há tecla premida?
-    JNZ  ha_tecla      ; se ainda houver uma tecla premida, espera até não haver
-    JMP  espera_tecla  ; volta a esperar que seja premida uma nova tecla
+    CMP R2, 0         ; há tecla premida?
+    JNZ ha_tecla      ; se ainda houver uma tecla premida, espera até não haver
+    JMP espera_tecla  ; volta a esperar que seja premida uma nova tecla
 
 linha_depois:
     SHR R1, 1          ; vai para a próxima linha
@@ -185,12 +185,12 @@ mover_dir:
 
 decrementa:
     CALL obter_display          ; obter valor do display
-    CMP  R7, 000H               ; verifica se atingi valor mínimo
-    JZ   espera_tecla           ; se sim, não faz nada
-    DEC  R7                     ; decrementa valor
-    MOV  [VALOR_DISPLAY], R7    ; atualiza na memória
-    MOV  [DISPLAYS], R7         ; atualiza no display      
-    JMP  ha_tecla               ; espera que a tecla deixe de ser premida
+    CMP R7, 000H               ; verifica se atingi valor mínimo
+    JZ espera_tecla           ; se sim, não faz nada
+    DEC R7                     ; decrementa valor
+    MOV [VALOR_DISPLAY], R7    ; atualiza na memória
+    MOV [DISPLAYS], R7         ; atualiza no display      
+    JMP ha_tecla               ; espera que a tecla deixe de ser premida
 
 incrementa:
     CALL obter_display          ; obter valor do display
@@ -261,10 +261,10 @@ sai_calcula_tecla:
 ; Retorna:      R7 - valor lido do display
 ; ******************************************************************************
 obter_display:
-    PUSH    R6             
+    PUSH R6             
     MOV R6, [VALOR_DISPLAY] ; obtêm valor atual do display
     MOV R7, R6              ; guarda valor no registo
-    POP     R6
+    POP R6
     RET
 
 ; ******************************************************************************
@@ -275,18 +275,18 @@ obter_display:
 ; Retorna: 	R2 - valor lido das colunas do teclado (0, 1, 2, 4, ou 8)	
 ; ******************************************************************************
 teclado:
-    PUSH    R3
-    PUSH    R4
-    PUSH    R5
-    MOV  R3, TEC_LIN    ; endereço do periférico das linhas
-    MOV  R4, TEC_COL    ; endereço do periférico das colunas
-    MOV  R5, MASCARA    ; isola os 4 bits de menor peso, ao ler as colunas do teclado
+    PUSH R3
+    PUSH R4
+    PUSH R5
+    MOV R3, TEC_LIN    ; endereço do periférico das linhas
+    MOV R4, TEC_COL    ; endereço do periférico das colunas
+    MOV R5, MASCARA    ; isola os 4 bits de menor peso, ao ler as colunas do teclado
     MOVB [R3], R1       ; escrever no periférico de saída (linhas)
     MOVB R2, [R4]       ; ler do periférico de entrada (colunas)
-    AND  R2, R5         ; elimina bits para além dos bits 0-3
-	POP     R5
-    POP     R4
-    POP     R3             
+    AND R2, R5         ; elimina bits para além dos bits 0-3
+    POP R5
+    POP R4
+    POP R3             
     RET
 
 ; ******************************************************************************
@@ -297,13 +297,13 @@ teclado:
 ;               R9 - tabela que define o boneco
 ; ******************************************************************************
 desenha_boneco:
-    PUSH	R1
-    PUSH	R2
-    PUSH	R3
-    PUSH	R4
-    PUSH    R7
-    PUSH    R8
-    PUSH    R9
+    PUSH R1
+    PUSH R2
+    PUSH R3
+    PUSH R4
+    PUSH R7
+    PUSH R8
+    PUSH R9
     MOV	R1, [R9]    ; obtém a largura do boneco
     MOV R4, R1      ; guarda a largura do boneco
     ADD	R9, 2       ; endereço da altura do boneco (2 porque a largura é uma word)
@@ -369,16 +369,16 @@ apaga_boneco:
     ADD R9, 2       ; endereço do 1º pixel
 
 apaga_pixels:           ; desenha os pixels do boneco a partir da tabela
-    MOV	 R3, 0          ; obtém a cor do próximo pixel do boneco
+    MOV R3, 0          ; obtém a cor do próximo pixel do boneco
     CALL escreve_pixel  ; escreve cada pixel do boneco
-    ADD  R8, 1          ; próxima coluna
-    SUB  R1, 1          ; menos uma coluna para tratar
-    JNZ  apaga_pixels   ; continua até percorrer toda a largura do objeto
-    ADD  R7, 1          ; próxima linha
-    MOV  R1, R4         ; reset à largura a percorrer
-    SUB  R8, R4         ; volta à coluna original
-    SUB  R2, 1          ; menos uma linha para tratar
-    JNZ  apaga_pixels   ; continua até percorrer toda a altura do objeto
+    ADD R8, 1          ; próxima coluna
+    SUB R1, 1          ; menos uma coluna para tratar
+    JNZ apaga_pixels   ; continua até percorrer toda a largura do objeto
+    ADD R7, 1          ; próxima linha
+    MOV R1, R4         ; reset à largura a percorrer
+    SUB R8, R4         ; volta à coluna original
+    SUB R2, 1          ; menos uma linha para tratar
+    JNZ apaga_pixels   ; continua até percorrer toda a altura do objeto
     POP R9
     POP R8
     POP R7
