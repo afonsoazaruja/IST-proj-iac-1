@@ -107,6 +107,7 @@ inicio:
     MOV [APAGA_ECRA], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 	MOV	R0, 0		                    ; cenário de fundo número 0
     MOV [DISPLAYS], R0                  ; inicializa display a 0
+    MOV [VALOR_DISPLAY], R0              ; inicializa o valor na memória a 0
     MOV [SELEC_CENARIO_FUNDO], R0	    ; seleciona o cenário de fundo
     MOV R1, LINHA                       ; linha inicial a analisar
     MOV R7, [POS_ROVER]                 ; linha do rover
