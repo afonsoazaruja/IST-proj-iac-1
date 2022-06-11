@@ -611,8 +611,8 @@ converte_ciclo:
     DIV R4, R1                  ; obter dígito do número decimal
     SHL R5, 4                   ; shift left para dar espaço aos outros dígitos
     OR R5, R4                   ; vai compondo o resultado
-    CMP R1, R2                  ; fator é menor que 10?
-    JGE converte_ciclo          ; se sim, chegou ao resultado
+    CMP R1, R2                  ; fator é maior ou igual a 10?
+    JGE converte_ciclo          ; se sim, ainda não chegou ao resultado
     MOV [VALOR_DISPLAY+2], R5   ; atualiza valor do display na memória
     POP R5
     POP R4
