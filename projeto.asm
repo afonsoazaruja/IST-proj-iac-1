@@ -23,9 +23,13 @@ MASCARA    EQU 0FH     ; necessário para isolar os bits de 4-7
 
 TEC_MOV_ESQ         EQU 0           ; tecla de movimento do rover para a esquerda ('0')
 TEC_MOV_DIR         EQU 2           ; tecla de movimento do rover para a direita ('2')
-TEC_DEC_DISPLAY     EQU 0CH         ; tecla para decrementar o display ('c')
-TEC_INC_DISPLAY     EQU 0DH         ; tecla para incrementar o display ('d')
+TEC_DEC_DISPLAY     EQU 0AH         ; tecla para decrementar o display ('a')
+TEC_INC_DISPLAY     EQU 0BH         ; tecla para incrementar o display ('b')
 TEC_BAIXA_MET       EQU 0EH         ; tecla para fazer descer o meteoro ('e')
+TEC_COMECAR         EQU 0CH         ; tecla para começar o jogo
+
+ATIVO       EQU 1       ; modo ativo da aplicação
+PARADO      EQU 0       ; modo parado da aplicação
 
 ; ************************ Definição do MediaCenter ****************************
 
@@ -64,17 +68,23 @@ COR_MET_BOM     EQU 0F0F0H      ; cor do pixel do meteoro bom: verde
 ; ******************************************************************************
 PLACE 1000H
 
-	STACK 100H             ; espaço reservado para a pilha do processo "programa principal"
-SP_inicial_prog_princ:     ; endereço com que o SP deste processo deve ser inicializado
+	STACK 100H              ; espaço reservado para a pilha do processo "programa principal"
+SP_inicial_prog_princ:      ; endereço com que o SP deste processo deve ser inicializado
 
-    STACK 100H             ; espaço reservado para a pilha do processo "teclado"
-SP_inicial_teclado:        ; endereço com que o SP deste processo deve ser inicializado
+    STACK 100H              ; espaço reservado para a pilha do processo "teclado"
+SP_inicial_teclado:         ; endereço com que o SP deste processo deve ser inicializado
 
-    STACK 100H             ; espaço reservado para a pilha do processo "escolhe-comando"
-SP_inicial_escolhe_comando: ; endereço com que o SP deste processo deve ser inicializado 
+    STACK 1000H             ; espaço reservado para a pilha do processo "escolhe_comando"
+SP_inicial_escolhe_comando: ; endereço com que o SP deste processo de ve ser inicializado
 
 tecla_pressionada:
     LOCK 0                 ; LOCK para o teclado comunicar aos restantes processos que tecla detetou
+
+modo_aplicacao:
+    WORD PARADO            ; modo atual da aplicação
+
+bloqueio:
+    LOCK 0                 ; LOCK para bloquear o processo "escolhe_comando"
 
 linha_a_testar:
     WORD LINHA_TEC         ; linha inicial a testar
@@ -117,11 +127,31 @@ inicio:
     MOV SP, SP_inicial_prog_princ                  ; inicializa o SP do programa principal
     MOV [APAGA_AVISO], R1	            ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
     MOV [APAGA_ECRA], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
-	MOV	R0, 0		                    ; cenário de fundo número 1
+	MOV	R0, 0		                    ; cenário de fundo número 0
     MOV [DISPLAYS], R0                  ; inicializa display a 0
     MOV [VALOR_DISPLAY], R0             ; inicializa o valor na memória a 0
     MOV [SELEC_CENARIO_FUNDO], R0	    ; seleciona o cenário de fundo
+    MOV [modo_aplicacao], R0            ; dá reset ao modo da aplicação
     
+    CALL teclado            ; cria o processo "teclado"
+    CALL escolhe_comando    ; cria o processo "escolhe_comando"
+
+controla_aplicacao:
+    WAIT
+    MOV R0, [tecla_pressionada]
+    MOV R11, TEC_COMECAR
+    XOR R11, R0
+    JZ  comeca_jogo                 ; se a tecla pressionada for 'C'
+    JMP controla_aplicacao
+
+comeca_jogo:
+    MOV R1, [modo_aplicacao]            ; se a aplicação já estiver no modo ATIVO
+    JNZ controla_aplicacao              ; não faz nada
+    MOV R1, ATIVO
+    MOV [modo_aplicacao], R1            ; troca o modo da aplicação para ATIVO
+    MOV [APAGA_ECRA], R1                ; apaga o ecrã
+    MOV R0, 1                           ; cenário de fundo número 1
+    MOV [SELEC_CENARIO_FUNDO], R0       ; troca o cenário de fundo
     MOV R7, [POS_ROVER]                 ; linha do rover
     MOV R8, [POS_ROVER+2]               ; coluna do rover
     MOV R9, DEF_ROVER                   ; tabela que define o rover
@@ -130,86 +160,7 @@ inicio:
     MOV R8, [POS_MET_BOM+2]             ; coluna do meteoro bom
     MOV R9, DEF_MET_BOM                 ; tabela que define o meteoro bom
     CALL desenha_boneco                 ; desenha o meteoro bom
-    
-    CALL teclado            ; cria o processo teclado
-
-escolhe_comando:
-    MOV R0, [tecla_pressionada]
-    CMP R0, TEC_MOV_ESQ
-    JZ  mover_esq                ; se for tecla '0'
-    CMP R0, TEC_MOV_DIR
-    JZ  mover_dir                ; se for tecla '2'
-    MOV R11, TEC_DEC_DISPLAY     ; criação de máscara
-    XOR R11, R0                  ; se a tecla for filtrada é a tecla correta
-    JZ  decrementa               ; se for tecla 'C'
-    MOV R11, TEC_INC_DISPLAY     ; atualização de máscara
-    XOR R11, R0                  ; se a tecla for filtrada é a tecla correta
-    JZ  incrementa               ; se for tecla 'D'
-    MOV R11, TEC_BAIXA_MET       ; atualização de máscara
-    XOR R11, R0                  ; se a tecla for filtrada é a tecla correta
-    JZ  baixa_meteoro            ; se for tecla 'E'
-    JMP escolhe_comando
-
-mover_esq:
-    MOV R7, [POS_ROVER]     ; linha atual do rover
-    MOV R8, [POS_ROVER+2]   ; coluna atual do rover
-    MOV R9, DEF_ROVER       ; tabela que define o rover
-    CMP R8, MIN_COLUNA      ; o rover esta na coluna 0?
-    JZ  escolhe_comando     ; se estiver no limite, não faz nada
-    CALL apaga_boneco       ; caso contrário, apaga o rover
-    DEC R8                  ; decrementa a coluna
-    MOV [POS_ROVER+2], R8   ; atualiza a coluna em memória
-    CALL desenha_boneco     ; desenha o rover na nova posição
-    CALL atraso             ; delay de movimento
-    JMP escolhe_comando
-
-mover_dir:
-    MOV R7, [POS_ROVER]     ; linha atual do rover
-    MOV R8, [POS_ROVER+2]   ; coluna atual do rover
-    MOV R9, DEF_ROVER       ; tabela que define o rover
-    MOV R10, MAX_COLUNA	    ; valor maximo da coluna	
-    CMP R8, R10             ; o rover esta na coluna 64?
-    JZ  escolhe_comando     ; se estiver no limite, não faz nada
-    CALL apaga_boneco       ; apaga o rover
-    INC R8                  ; aumenta a coluna
-    MOV [POS_ROVER+2], R8   ; atualiza a coluna em memória
-    CALL desenha_boneco     ; desenha o rover na nova posição
-    CALL atraso             ; delay de movimento
-    JMP escolhe_comando
-
-decrementa:
-    MOV R7, [VALOR_DISPLAY]     ; obter valor do display
-    CMP R7, 000H                ; verifica se atingi valor mínimo
-    JZ  escolhe_comando         ; se estiver no limite, não faz nada
-    DEC R7                      ; decrementa valor
-    MOV [VALOR_DISPLAY], R7     ; atualiza na memória
-    MOV [DISPLAYS], R7          ; atualiza no display
-    JMP escolhe_comando
-
-incrementa:
-    MOV R7, [VALOR_DISPLAY]     ; obter valor do display
-    CMP  R7, 0FFF8H             ; verifica se atingi valor máximo
-    JZ  escolhe_comando         ; se estiver no limite, não faz nada
-    INC  R7                     ; incrementa valor
-    MOV  [VALOR_DISPLAY], R7    ; atualiza na memória
-    MOV  [DISPLAYS], R7         ; atualiza no display
-    JMP escolhe_comando
-
-baixa_meteoro:
-    MOV R0, 0                   ; som a reproduzir
-    MOV [REPRODUZ_SOM], R0      ; reproduz som
-    MOV R7, [POS_MET_BOM]       ; linha atual do meteoro bom
-    MOV R8, [POS_MET_BOM+2]     ; coluna atual do meteoro bom
-    MOV R9, DEF_MET_BOM         ; tabela que define o meteoro bom
-    CALL apaga_boneco           ; apaga o meteoro bom
-    INC R7                      ; incrementa a linha
-    MOV R8, MAX_LINHA           ; linha máxima
-    CMP R7, R8                  ; compara a linha atual do meteoro com a linha máxima
-    JZ  escolhe_comando         ; se chegar à linha máxima, não o volta a desenhar
-    MOV [POS_MET_BOM], R7       ; atualiza a linha em memória
-    MOV R8, [POS_MET_BOM+2]     ; coluna atual do meteoro bom
-    CALL desenha_boneco         ; desenha o meteoro bom na nova posição
-    JMP escolhe_comando
+    MOV [bloqueio], R1                  ; desbloqueia o processo "escolhe_comando"
 
 ; ******************************************************************************
 ; PROCESSOS
@@ -260,6 +211,96 @@ reset_linha:
     MOV R1, LINHA_TEC
     MOV [linha_a_testar], R1    ; dá reset à linha
     JMP espera_tecla
+
+; ******************************************************************************
+; ESCOLHE_COMANDO - Escolhe o comando a realizar dependendo da tecla pressionada
+; ******************************************************************************
+PROCESS SP_inicial_escolhe_comando
+escolhe_comando:
+    MOV R1, [modo_aplicacao]
+    JNZ seleciona_comando
+    
+bloqueia_escolhe_comando:
+    MOV R2, [bloqueio]
+
+seleciona_comando:    
+    WAIT
+    MOV R0, [tecla_pressionada]
+    CMP R0, TEC_MOV_ESQ
+    JZ  mover_esq                ; se for tecla '0'
+    CMP R0, TEC_MOV_DIR
+    JZ  mover_dir                ; se for tecla '2'
+    MOV R11, TEC_DEC_DISPLAY     ; criação de máscara
+    XOR R11, R0                  ; se a tecla for filtrada é a tecla correta
+    JZ  decrementa               ; se for tecla 'A'
+    MOV R11, TEC_INC_DISPLAY     ; atualização de máscara
+    XOR R11, R0                  ; se a tecla for filtrada é a tecla correta
+    JZ  incrementa               ; se for tecla 'B'
+    MOV R11, TEC_BAIXA_MET       ; atualização de máscara
+    XOR R11, R0                  ; se a tecla for filtrada é a tecla correta
+    JZ  baixa_meteoro            ; se for tecla 'E'
+    JMP seleciona_comando
+
+mover_esq:
+    MOV R7, [POS_ROVER]     ; linha atual do rover
+    MOV R8, [POS_ROVER+2]   ; coluna atual do rover
+    MOV R9, DEF_ROVER       ; tabela que define o rover
+    CMP R8, MIN_COLUNA      ; o rover esta na coluna 0?
+    JZ  seleciona_comando   ; se estiver no limite, não faz nada
+    CALL apaga_boneco       ; caso contrário, apaga o rover
+    DEC R8                  ; decrementa a coluna
+    MOV [POS_ROVER+2], R8   ; atualiza a coluna em memória
+    CALL desenha_boneco     ; desenha o rover na nova posição
+    CALL atraso             ; delay de movimento
+    JMP seleciona_comando
+
+mover_dir:
+    MOV R7, [POS_ROVER]     ; linha atual do rover
+    MOV R8, [POS_ROVER+2]   ; coluna atual do rover
+    MOV R9, DEF_ROVER       ; tabela que define o rover
+    MOV R10, MAX_COLUNA	    ; valor maximo da coluna	
+    CMP R8, R10             ; o rover esta na coluna 64?
+    JZ  seleciona_comando     ; se estiver no limite, não faz nada
+    CALL apaga_boneco       ; apaga o rover
+    INC R8                  ; aumenta a coluna
+    MOV [POS_ROVER+2], R8   ; atualiza a coluna em memória
+    CALL desenha_boneco     ; desenha o rover na nova posição
+    CALL atraso             ; delay de movimento
+    JMP seleciona_comando
+
+decrementa:
+    MOV R7, [VALOR_DISPLAY]     ; obter valor do display
+    CMP R7, 000H                ; verifica se atingi valor mínimo
+    JZ  seleciona_comando         ; se estiver no limite, não faz nada
+    DEC R7                      ; decrementa valor
+    MOV [VALOR_DISPLAY], R7     ; atualiza na memória
+    MOV [DISPLAYS], R7          ; atualiza no display
+    JMP seleciona_comando
+
+incrementa:
+    MOV R7, [VALOR_DISPLAY]     ; obter valor do display
+    CMP  R7, 0FFF8H             ; verifica se atingi valor máximo
+    JZ  seleciona_comando         ; se estiver no limite, não faz nada
+    INC  R7                     ; incrementa valor
+    MOV  [VALOR_DISPLAY], R7    ; atualiza na memória
+    MOV  [DISPLAYS], R7         ; atualiza no display
+    JMP seleciona_comando
+
+baixa_meteoro:
+    MOV R0, 0                   ; som a reproduzir
+    MOV [REPRODUZ_SOM], R0      ; reproduz som
+    MOV R7, [POS_MET_BOM]       ; linha atual do meteoro bom
+    MOV R8, [POS_MET_BOM+2]     ; coluna atual do meteoro bom
+    MOV R9, DEF_MET_BOM         ; tabela que define o meteoro bom
+    CALL apaga_boneco           ; apaga o meteoro bom
+    INC R7                      ; incrementa a linha
+    MOV R8, MAX_LINHA           ; linha máxima
+    CMP R7, R8                  ; compara a linha atual do meteoro com a linha máxima
+    JZ  seleciona_comando         ; se chegar à linha máxima, não o volta a desenhar
+    MOV [POS_MET_BOM], R7       ; atualiza a linha em memória
+    MOV R8, [POS_MET_BOM+2]     ; coluna atual do meteoro bom
+    CALL desenha_boneco         ; desenha o meteoro bom na nova posição
+    JMP seleciona_comando
 
 ; ****************************************************************************** 
 ; ROTINAS
