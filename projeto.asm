@@ -218,6 +218,7 @@ reset_linha:
 PROCESS SP_inicial_escolhe_comando
 escolhe_comando:
     MOV R1, [modo_aplicacao]
+    CMP R1, 0
     JNZ seleciona_comando
     
 bloqueia_escolhe_comando:
