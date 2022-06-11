@@ -216,7 +216,7 @@ termina_jogo:
     MOV R2, LINHA_MET_BOM
     MOV [POS_MET_BOM], R2
     MOV R2, COLUNA_MET_BOM
-    MOV [POS_MET_BOM], R2
+    MOV [POS_MET_BOM+2], R2
     JMP espera_inicio_jogo
 
 ; ******************************************************************************
