@@ -33,6 +33,8 @@ TEC_TERMINAR        EQU 0EH         ; tecla para terminar o jogo
 ATIVO       EQU 1       ; modo ativo da aplicação
 PARADO      EQU 0       ; modo parado da aplicação
 
+ATRASO  EQU	2500H       ; atraso para limitar a velocidade de movimento do rover
+
 ; ************************ Definição do MediaCenter ****************************
 
 DEFINE_LINHA        EQU 600AH      ; endereço do comando para definir a linha
@@ -46,24 +48,6 @@ REPRODUZ_SOM        EQU 605AH      ; endereço do comando para reproduzir um som
 MIN_COLUNA		EQU 0		   ; número da coluna mais à esquerda que o objeto pode ocupar
 MAX_COLUNA		EQU 59         ; número da coluna mais à direita que o objeto pode ocupar
 MAX_LINHA       EQU 32         ; número da linha máxima
-
-; ******************************************************************************
-
-ATRASO  EQU	2500H       ; atraso para limitar a velocidade de movimento do rover
-
-LINHA_ROVER     EQU 28          ; linha do rover
-COLUNA_ROVER    EQU 30          ; coluna do rover
-
-ALTURA_ROVER    EQU 4           ; altura do rover
-LARGURA_ROVER   EQU	5	        ; largura do rover
-COR_ROVER       EQU	0FFF0H      ; cor do pixel do rover: vermelho em ARGB
-
-LINHA_MET_BOM   EQU 0           ; linha do meteoro bom
-COLUNA_MET_BOM  EQU 16          ; coluna do meteoro bom
-
-ALTURA_MET_BOM  EQU 5           ; altura do meteoro bom
-LARGURA_MET_BOM EQU 5           ; largura do meteoro bom
-COR_MET_BOM     EQU 0F0F0H      ; cor do pixel do meteoro bom: verde
 
 ; ******************************************************************************
 ; * Dados 
@@ -91,30 +75,112 @@ bloqueio:
 linha_a_testar:
     WORD LINHA_TEC         ; linha inicial a testar
 
+; ******************************* CORES ****************************************
+
+CINZENTO    EQU 0A000H
+VERDE       EQU 0F0F0H
+AMARELO     EQU	0FFF0H
+VERMELHO    EQU 0FF00H
+AZUL        EQU 0F0AFH
+ROXO        EQU 0FA0FH
+
 ; ******************************** Definição ROVER *****************************
+
+ALTURA_ROVER    EQU 4           ; altura do rover
+LARGURA_ROVER   EQU	5	        ; largura do rover
 
 DEF_ROVER:  ; tabela que define o rover (cor, largura, pixels)
 	WORD	LARGURA_ROVER, ALTURA_ROVER                             
-    WORD    0 , 0, COR_ROVER, 0 , 0                                 ; Definição da 1ª linha da nave 
-	WORD	COR_ROVER, 0, COR_ROVER, 0, COR_ROVER                   ; Definição da 2ª linha da nave
-    WORD    COR_ROVER, COR_ROVER, COR_ROVER, COR_ROVER, COR_ROVER   ; Definição da 3ª linha da nave
-    WORD    0, COR_ROVER, 0, COR_ROVER, 0                           ; Definição da 4ª linha da nave
+    WORD    0 , 0, AMARELO, 0 , 0                                 ; Definição da 1ª linha da nave 
+	WORD	AMARELO, 0, AMARELO, 0, AMARELO                   ; Definição da 2ª linha da nave
+    WORD    AMARELO, AMARELO, AMARELO, AMARELO, AMARELO   ; Definição da 3ª linha da nave
+    WORD    0, AMARELO, 0, AMARELO, 0                           ; Definição da 4ª linha da nave
+
+LINHA_ROVER     EQU 28          ; linha do rover
+COLUNA_ROVER    EQU 30          ; coluna do rover
 
 POS_ROVER: 
     WORD    LINHA_ROVER, COLUNA_ROVER
 
-; ******************************* Definição METEORO BOM ************************
+; ******************************* Definições Gerais Meteoros *******************
 
-DEF_MET_BOM:    ; tabela que define o meteoro bom (cor, largura, pixels)
-    WORD    LARGURA_MET_BOM, ALTURA_MET_BOM
-    WORD    0, COR_MET_BOM, COR_MET_BOM, COR_MET_BOM, 0                     ; Definição da 1ª linha do meteoro
-    WORD    COR_MET_BOM, COR_MET_BOM, COR_MET_BOM, COR_MET_BOM, COR_MET_BOM ; Definição da 2ª linha do meteoro 
-    WORD    COR_MET_BOM, COR_MET_BOM, COR_MET_BOM, COR_MET_BOM, COR_MET_BOM ; Definição da 3ª linha do meteoro 
-    WORD    COR_MET_BOM, COR_MET_BOM, COR_MET_BOM, COR_MET_BOM, COR_MET_BOM ; Definição da 4ª linha do meteoro 
-    WORD    0, COR_MET_BOM, COR_MET_BOM, COR_MET_BOM, 0                     ; Definição da 5ª linha do meteoro
+ALTURA_MET_1    EQU 1
+LARGURA_MET_1   EQU 1
+
+ALTURA_MET_2    EQU 2
+LARGURA_MET_2   EQU 2
+
+ALTURA_MET_3    EQU 3
+LARGURA_MET_3   EQU 3
+
+ALTURA_MET_4    EQU 4
+LARGURA_MET_4   EQU 4
+
+ALTURA_MET_5    EQU 5
+LARGURA_MET_5   EQU 5
+
+DEF_MET_GERAL_1:
+    WORD    LARGURA_MET_1, ALTURA_MET_1
+    WORD    CINZENTO
+
+DEF_MET_GERAL_2:
+    WORD    LARGURA_MET_2, ALTURA_MET_2
+    WORD    CINZENTO
+
+; ******************************* Definições METEOROS BONS *********************
+
+DEF_MET_BOM_1:
+    WORD    LARGURA_MET_3, ALTURA_MET_3
+    WORD    0, VERDE, 0
+    WORD    VERDE, VERDE, VERDE
+    WORD    0, VERDE, 0
+
+DEF_MET_BOM_2:
+    WORD    LARGURA_MET_4, ALTURA_MET_4
+    WORD    0, VERDE, VERDE, 0
+    WORD    VERDE, VERDE, VERDE, VERDE
+    WORD    VERDE, VERDE, VERDE, VERDE
+    WORD    0, VERDE, VERDE, 0
+
+DEF_MET_BOM_3:
+    WORD    LARGURA_MET_5, ALTURA_MET_5
+    WORD    0, VERDE, VERDE, VERDE, 0
+    WORD    VERDE, VERDE, VERDE, VERDE, VERDE
+    WORD    VERDE, VERDE, VERDE, VERDE, VERDE
+    WORD    VERDE, VERDE, VERDE, VERDE, VERDE
+    WORD    0, VERDE, VERDE, VERDE, 0
+
+; ******************************* Definições METEOROS MAUS *********************
+
+DEF_MET_MAU_1:
+    WORD    LARGURA_MET_3, ALTURA_MET_3
+    WORD    VERMELHO, 0, VERMELHO
+    WORD    0, VERMELHO, 0
+    WORD    VERMELHO, 0, VERMELHO
+
+DEF_MET_MAU_2:
+    WORD    LARGURA_MET_4, ALTURA_MET_4
+    WORD    VERMELHO, 0, 0, VERMELHO
+    WORD    0, VERMELHO, VERMELHO, 0
+    WORD    VERMELHO, 0, 0, VERMELHO
+    WORD    VERMELHO, 0, 0, VERMELHO
+
+DEF_MET_MAU_3:
+    WORD    LARGURA_MET_5, ALTURA_MET_5
+    WORD    VERMELHO, 0, 0, 0, VERMELHO
+    WORD    VERMELHO, 0, VERMELHO, 0, VERMELHO
+    WORD    0, VERMELHO, VERMELHO, VERMELHO, 0
+    WORD    VERMELHO, 0, VERMELHO, 0, VERMELHO
+    WORD    VERMELHO, 0, 0, 0, VERMELHO
+
+; ******************************* Posições dos Meteoros (no máximo 4)***********
+
+LINHA_MET_BOM   EQU 0           ; linha do meteoro bom
+COLUNA_MET_BOM  EQU 16          ; coluna do meteoro bom
 
 POS_MET_BOM:
     WORD    LINHA_MET_BOM, COLUNA_MET_BOM
+
 ; ******************************************************************************
 VALOR_DISPLAY:
     WORD    000H
@@ -171,7 +237,6 @@ controla_aplicacao:
     MOV R11, TEC_PAUSAR
     XOR R11, R0
     JZ  pausa_continua_jogo         ; se a tecla pressionada for 'D'
-    MOV R0, [tecla_pressionada]
     MOV R11, TEC_TERMINAR
     XOR R11, R0
     JZ  termina_jogo                ; se a tecla pressionada for 'E'
@@ -187,12 +252,15 @@ pausa_jogo:
     MOV R1, PARADO
     MOV [modo_aplicacao], R1
     ;DI
+    MOV R1, 2
+    MOV [SELEC_CENARIO_FUNDO], R1
     JMP controla_aplicacao
 
 continua_jogo:
     MOV R1, ATIVO
     MOV [modo_aplicacao], R1
     ;EI
+    MOV [SELEC_CENARIO_FUNDO], R1
     MOV [bloqueio], R1
     JMP controla_aplicacao
 
