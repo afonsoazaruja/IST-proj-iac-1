@@ -606,15 +606,13 @@ converte:
     MOV R2, DIVISOR             ; divisor 10 decimal
 converte_ciclo:
     MOD R0, R1                  ; resto da divisão do valor por o fator atual
-    CMP R1, R2                  ; fator é menor que 10?
-    JLT converte_fim            ; se sim, chegou ao resultado
     DIV R1, R2                  ; dividir fator por 10
     MOV R4, R0                  ; guarda digito
     DIV R4, R1                  ; obter dígito do número decimal
     SHL R5, 4                   ; shift left para dar espaço aos outros dígitos
     OR R5, R4                   ; vai compondo o resultado
-    JMP converte_ciclo
-converte_fim:
+    CMP R1, R2                  ; fator é menor que 10?
+    JGE converte_ciclo          ; se sim, chegou ao resultado
     MOV [VALOR_DISPLAY+2], R5   ; atualiza valor do display na memória
     POP R5
     POP R4
@@ -623,4 +621,3 @@ converte_fim:
     POP R1
     POP R0
     RET
-
