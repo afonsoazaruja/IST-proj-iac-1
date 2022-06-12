@@ -58,20 +58,20 @@ MAX_LINHA       EQU 32         ; número da linha máxima
 ; ******************************************************************************
 PLACE 1000H
 
-	STACK 100H              ; espaço reservado para a pilha do processo "programa principal"
-SP_inicial_prog_princ:      ; endereço com que o SP deste processo deve ser inicializado
+	STACK 100H              ; espaço reservado para a pilha do processo "controlo"
+SP_inicial_controlo:        ; endereço com que o SP deste processo deve ser inicializado
 
     STACK 100H              ; espaço reservado para a pilha do processo "teclado"
 SP_inicial_teclado:         ; endereço com que o SP deste processo deve ser inicializado
 
-    STACK 100H              ; espaço reservado para a pilha do processo "escolhe_comando"
-SP_inicial_escolhe_comando: ; endereço com que o SP deste processo deve ser inicializado
+    STACK 100H              ; espaço reservado para a pilha do processo "rover"
+SP_inicial_rover:           ; endereço com que o SP deste processo deve ser inicializado
 
-    STACK 100H              ; espaço reservado para a pilha do processo "testa_int0"
-SP_inicial_int0:            ; endereço com que o SP deste processo deve ser inicializado
+    STACK 100H              ; espaço reservado para a pilha do processo "meteoros"
+SP_inicial_meteoros:        ; endereço com que o SP deste processo deve ser inicializado
 
-    STACK 100H              ; espaço reservado para a pilha do processo "testa_int2"
-SP_inicial_int2:            ; endereço com que o SP deste processo deve ser inicializado
+    STACK 100H              ; espaço reservado para a pilha do processo "energia"
+SP_inicial_energia:         ; endereço com que o SP deste processo deve ser inicializado
 
 tecla_pressionada:
     LOCK 0                 ; LOCK para o teclado comunicar aos restantes processos que tecla detetou
@@ -80,7 +80,7 @@ modo_aplicacao:
     WORD PARADO            ; modo atual da aplicação
 
 bloqueio:
-    LOCK 0                 ; LOCK para bloquear o processo "escolhe_comando"
+    LOCK 0                 ; LOCK para bloquear o processo "rover"
 
 linha_a_testar:
     WORD LINHA_TEC         ; linha inicial a testar
@@ -220,7 +220,7 @@ evento_int_bonecos:			; LOCKs para cada rotina de interrupção comunicar ao pro
 PLACE   0H
 
 inicio:
-    MOV SP, SP_inicial_prog_princ       ; inicializa o SP do programa principal
+    MOV SP, SP_inicial_controlo         ; inicializa o SP do programa principal
     MOV BTE, tab                        ; inicializa BTE
     MOV [APAGA_AVISO], R1	            ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
     MOV [APAGA_ECRA], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
@@ -233,9 +233,9 @@ inicio:
     EI
     
     CALL teclado            ; cria o processo "teclado"
-    CALL escolhe_comando    ; cria o processo "escolhe_comando"
-    CALL testa_int0         ; cria o processo "testa_int0"
-    CALL testa_int2         ; cria o processo "testa_int2"
+    CALL rover              ; cria o processo "rover"
+    CALL meteoros           ; cria o processo "meteoros"
+    CALL energia            ; cria o processo "energia"
 
 espera_inicio_jogo:
     MOV R1, 064H
@@ -262,7 +262,7 @@ comeca_jogo:
     MOV R8, [POS_MET_BOM+2]             ; coluna do meteoro bom
     MOV R9, DEF_MET_BOM_3               ; tabela que define o meteoro bom
     CALL desenha_boneco                 ; desenha o meteoro bom
-    MOV [bloqueio], R1                  ; desbloqueia o processo "escolhe_comando"
+    MOV [bloqueio], R1                  ; desbloqueia o processo "rover"
 
 controla_aplicacao:
     WAIT
@@ -371,39 +371,39 @@ reset_linha:
     JMP espera_tecla
 
 ; ******************************************************************************
-; ESCOLHE_COMANDO - Escolhe o comando a realizar dependendo da tecla pressionada
+; ROVER - Escolhe o comando a realizar dependendo da tecla pressionada
 ; ******************************************************************************
-PROCESS SP_inicial_escolhe_comando
-escolhe_comando:
+PROCESS SP_inicial_rover
+rover:
     WAIT
     MOV R1, [modo_aplicacao]
     CMP R1, PARADO
-    JNZ seleciona_comando
+    JNZ movimento
 
-bloqueia_escolhe_comando:
+bloqueia_rover:
     MOV R2, [bloqueio]
-    JMP escolhe_comando
+    JMP rover
     
-seleciona_comando:
+movimento:
     MOV R0, [tecla_pressionada]
     CMP R0, TEC_MOV_ESQ
     JZ  mover_esq                ; se for tecla '0'
     CMP R0, TEC_MOV_DIR
     JZ  mover_dir                ; se for tecla '2'
-    JMP escolhe_comando
+    JMP rover
 
 mover_esq:
     MOV R7, [POS_ROVER]     ; linha atual do rover
     MOV R8, [POS_ROVER+2]   ; coluna atual do rover
     MOV R9, DEF_ROVER       ; tabela que define o rover
     CMP R8, MIN_COLUNA      ; o rover esta na coluna 0?
-    JZ  escolhe_comando   ; se estiver no limite, não faz nada
+    JZ  rover               ; se estiver no limite, não faz nada
     CALL apaga_boneco       ; caso contrário, apaga o rover
     DEC R8                  ; decrementa a coluna
     MOV [POS_ROVER+2], R8   ; atualiza a coluna em memória
     CALL desenha_boneco     ; desenha o rover na nova posição
     CALL atraso             ; delay de movimento
-    JMP escolhe_comando
+    JMP rover
 
 mover_dir:
     MOV R7, [POS_ROVER]     ; linha atual do rover
@@ -411,46 +411,49 @@ mover_dir:
     MOV R9, DEF_ROVER       ; tabela que define o rover
     MOV R10, MAX_COLUNA	    ; valor maximo da coluna	
     CMP R8, R10             ; o rover esta na coluna 64?
-    JZ  escolhe_comando     ; se estiver no limite, não faz nada
+    JZ  rover               ; se estiver no limite, não faz nada
     CALL apaga_boneco       ; apaga o rover
     INC R8                  ; aumenta a coluna
     MOV [POS_ROVER+2], R8   ; atualiza a coluna em memória
     CALL desenha_boneco     ; desenha o rover na nova posição
     CALL atraso             ; delay de movimento
-    JMP escolhe_comando
+    JMP rover
 
 ; ******************************************************************************
-;   TESTA_INT0 - Testa se a interrupção 0 ocorreu e, caso tenha ocorrido, faz
-;                descer os meteoros
+;   METEOROS - Testa se a interrupção 0 ocorreu e, caso tenha ocorrido, faz
+;              descer os meteoros
 ; ******************************************************************************
-PROCESS SP_inicial_int0
-testa_int0:
+PROCESS SP_inicial_meteoros
+meteoros:
     WAIT
     MOV R0, [evento_int_bonecos]
     MOV R1, [modo_aplicacao]
     CMP R1, PARADO
-    JZ sai_testa_int0
+    JZ sai_meteoros
     MOV R7, [POS_MET_BOM]
     MOV R8, [POS_MET_BOM+2]
     MOV R9, DEF_MET_BOM_3
     CALL apaga_boneco
     INC R7
+    MOV R10, MAX_LINHA
+    CMP R7, R10
+    JZ  sai_meteoros
     MOV [POS_MET_BOM], R7
     CALL desenha_boneco
-sai_testa_int0:    
-    JMP testa_int0
+sai_meteoros:    
+    JMP meteoros
 
 ; ******************************************************************************
-;   TESTA_INT2 - Testa se a interrupção 2 ocorreu e, caso tenha ocorrido,
-;                decrementa o display da energia
+;   ENERGIA - Testa se a interrupção 2 ocorreu e, caso tenha ocorrido,
+;             decrementa o display da energia
 ; ******************************************************************************
-PROCESS SP_inicial_int2
-testa_int2:
+PROCESS SP_inicial_energia
+energia:
     WAIT
     MOV R0, [evento_int_bonecos+4]
     MOV R1, [modo_aplicacao]
     CMP R1, PARADO
-    JZ sai_testa_int2
+    JZ sai_energia
     MOV R7, [VALOR_DISPLAY]
     CMP R7, MIN_DISPLAY                 ; verifica se atingi valor mínimo
     SUB R7, 5                      ; decrementa valor
@@ -458,8 +461,8 @@ testa_int2:
     CALL converte               ; converte valor hexadecimal para decimal
     MOV R7, [VALOR_DISPLAY+2]
     MOV [DISPLAYS], R7
-sai_testa_int2:
-    JMP testa_int2
+sai_energia:
+    JMP energia
 
 ; ****************************************************************************** 
 ; ROTINAS
@@ -521,6 +524,9 @@ desenha_boneco:
     ADD R9, 2       ; endereço do 1º pixel
 
 desenha_pixels:       		; desenha os pixels do boneco a partir da tabela
+    MOV R3, MAX_LINHA       
+    CMP R7, R3              ; caso esteja na última linha do ecrã
+    JZ sai_desenha_pixels   ; então para de desenhar
     MOV R3, [R9]			; obtém a cor do próximo pixel do boneco
     CALL escreve_pixel		; escreve cada pixel do boneco
     ADD R9, 2			    ; endereço da cor do próximo pixel (2 porque cada cor de pixel é uma word)
@@ -528,9 +534,6 @@ desenha_pixels:       		; desenha os pixels do boneco a partir da tabela
     SUB R1, 1			    ; menos uma coluna para tratar
     JNZ desenha_pixels      ; continua até percorrer toda a largura do objeto
     ADD R7, 1               ; próxima linha
-    MOV R1, MAX_LINHA       
-    CMP R7, R1              ; caso esteja na última linha do ecrã
-    JZ sai_desenha_pixels   ; então para de desenhar
     MOV R1, R4              ; reset à largura a percorrer
     SUB R8, R4              ; volta à coluna original
     SUB R2, 1               ; menos uma linha para tratar
@@ -579,6 +582,9 @@ apaga_boneco:
     ADD R9, 2       ; endereço do 1º pixel
 
 apaga_pixels:           ; desenha os pixels do boneco a partir da tabela
+    MOV R3, MAX_LINHA
+    CMP R7, R3          ; caso esteja na última linha do ecrã
+    JZ sai_apaga_pixels ; então para de apagar
     MOV R3, 0           ; obtém a cor do próximo pixel do boneco
     CALL escreve_pixel  ; escreve cada pixel do boneco
     ADD R8, 1           ; próxima coluna
@@ -589,6 +595,7 @@ apaga_pixels:           ; desenha os pixels do boneco a partir da tabela
     SUB R8, R4          ; volta à coluna original
     SUB R2, 1           ; menos uma linha para tratar
     JNZ apaga_pixels    ; continua até percorrer toda a altura do objeto
+sai_apaga_pixels:
     POP R9
     POP R8
     POP R7
