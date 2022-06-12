@@ -23,9 +23,6 @@ MASCARA    EQU 0FH     ; necessário para isolar os bits de 4-7
 
 TEC_MOV_ESQ         EQU 0           ; tecla de movimento do rover para a esquerda ('0')
 TEC_MOV_DIR         EQU 2           ; tecla de movimento do rover para a direita ('2')
-TEC_DEC_DISPLAY     EQU 0AH         ; tecla para decrementar o display ('A')
-TEC_INC_DISPLAY     EQU 0BH         ; tecla para incrementar o display ('B')
-TEC_BAIXA_MET       EQU 0FH         ; tecla para fazer descer o meteoro ('F')
 TEC_COMECAR         EQU 0CH         ; tecla para começar o jogo ('C')
 TEC_PAUSAR          EQU 0DH         ; tecla para suspender/continuar o jogo ('D')
 TEC_TERMINAR        EQU 0EH         ; tecla para terminar o jogo
@@ -227,11 +224,13 @@ inicio:
     MOV BTE, tab                        ; inicializa BTE
     MOV [APAGA_AVISO], R1	            ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
     MOV [APAGA_ECRA], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
-	MOV	R0, 0		                    ; cenário de fundo número 0
-    MOV R1, [VALOR_DISPLAY+2]           ; obter valor display decimal
-    MOV [DISPLAYS], R1                  ; inicializa display a 100
+    MOV	R0, 0		                    ; cenário de fundo número 0
     MOV [SELEC_CENARIO_FUNDO], R0	    ; seleciona o cenário de fundo
     MOV [modo_aplicacao], R0            ; dá reset ao modo da aplicação
+    EI0
+    ;EI1
+    EI2
+    EI
     
     CALL teclado            ; cria o processo "teclado"
     CALL escolhe_comando    ; cria o processo "escolhe_comando"
@@ -239,7 +238,11 @@ inicio:
     CALL testa_int2         ; cria o processo "testa_int2"
 
 espera_inicio_jogo:
-    WAIT
+    MOV R1, 064H
+    MOV [VALOR_DISPLAY], R1           ; obter valor display decimal
+    CALL converte                  ; inicializa display a 100
+    MOV R1, [VALOR_DISPLAY+2]
+    MOV [DISPLAYS], R1
     MOV R0, [tecla_pressionada]
     MOV R11, TEC_COMECAR
     XOR R11, R0
@@ -260,10 +263,6 @@ comeca_jogo:
     MOV R9, DEF_MET_BOM_3               ; tabela que define o meteoro bom
     CALL desenha_boneco                 ; desenha o meteoro bom
     MOV [bloqueio], R1                  ; desbloqueia o processo "escolhe_comando"
-    EI0
-    ;EI1
-    ;EI2
-    EI
 
 controla_aplicacao:
     WAIT
@@ -278,30 +277,30 @@ controla_aplicacao:
 
 pausa_continua_jogo:
     MOV R1, [modo_aplicacao]
-    CMP R1, 1
+    CMP R1, ATIVO
     JZ pausa_jogo
     JMP continua_jogo
 
 pausa_jogo:
+    DI
     MOV R1, PARADO
     MOV [modo_aplicacao], R1
-    ;DI
     MOV R1, 2
     MOV [SELEC_CENARIO_FUNDO], R1
     JMP controla_aplicacao
 
 continua_jogo:
+    EI
     MOV R1, ATIVO
     MOV [modo_aplicacao], R1
-    ;EI
     MOV [SELEC_CENARIO_FUNDO], R1
     MOV [bloqueio], R1
     JMP controla_aplicacao
 
 termina_jogo:
+    DI
     MOV R1, PARADO
     MOV [modo_aplicacao], R1
-    ;DI
     MOV [SELEC_CENARIO_FUNDO], R1
     MOV R7, [POS_ROVER]
     MOV R8, [POS_ROVER+2]
@@ -377,7 +376,6 @@ reset_linha:
 PROCESS SP_inicial_escolhe_comando
 escolhe_comando:
     WAIT
-    MOV R0, [tecla_pressionada]
     MOV R1, [modo_aplicacao]
     CMP R1, PARADO
     JNZ seleciona_comando
@@ -386,20 +384,12 @@ bloqueia_escolhe_comando:
     MOV R2, [bloqueio]
     JMP escolhe_comando
     
-seleciona_comando:    
+seleciona_comando:
+    MOV R0, [tecla_pressionada]
     CMP R0, TEC_MOV_ESQ
     JZ  mover_esq                ; se for tecla '0'
     CMP R0, TEC_MOV_DIR
     JZ  mover_dir                ; se for tecla '2'
-    MOV R11, TEC_DEC_DISPLAY     ; criação de máscara
-    XOR R11, R0                  ; se a tecla for filtrada é a tecla correta
-    JZ  decrementa               ; se for tecla 'A'
-    MOV R11, TEC_INC_DISPLAY     ; atualização de máscara
-    XOR R11, R0                  ; se a tecla for filtrada é a tecla correta
-    JZ  incrementa               ; se for tecla 'B'
-    MOV R11, TEC_BAIXA_MET       ; atualização de máscara
-    XOR R11, R0                  ; se a tecla for filtrada é a tecla correta
-    JZ  baixa_meteoro            ; se for tecla 'E'
     JMP escolhe_comando
 
 mover_esq:
@@ -429,52 +419,17 @@ mover_dir:
     CALL atraso             ; delay de movimento
     JMP escolhe_comando
 
-decrementa:
-    MOV R7, [VALOR_DISPLAY]
-    CMP R7, MIN_DISPLAY                 ; verifica se atingi valor mínimo
-    JZ  escolhe_comando         ; se estiver no limite, não faz nada
-    SUB R7, 5                      ; decrementa valor
-    MOV [VALOR_DISPLAY], R7
-    CALL converte               ; converte valor hexadecimal para decimal
-    MOV R7, [VALOR_DISPLAY+2]
-    MOV [DISPLAYS], R7
-    JMP escolhe_comando
-
-incrementa:
-    MOV R7, [VALOR_DISPLAY]
-    MOV R8, MAX_DISPLAY
-    CMP R7, R8             ; verifica se atingi valor máximo
-    JZ escolhe_comando         ; se estiver no limite, não faz nada
-    INC R7                     ; incrementa valor
-    MOV [VALOR_DISPLAY], R7
-    CALL converte
-    MOV R7, [VALOR_DISPLAY+2]
-    MOV [DISPLAYS], R7
-    JMP escolhe_comando
-
-baixa_meteoro:
-    MOV R0, 0                   ; som a reproduzir
-    MOV [REPRODUZ_SOM], R0      ; reproduz som
-    MOV R7, [POS_MET_BOM]       ; linha atual do meteoro bom
-    MOV R8, [POS_MET_BOM+2]     ; coluna atual do meteoro bom
-    MOV R9, DEF_MET_BOM_3         ; tabela que define o meteoro bom
-    CALL apaga_boneco           ; apaga o meteoro bom
-    INC R7                      ; incrementa a linha
-    MOV R8, MAX_LINHA           ; linha máxima
-    CMP R7, R8                  ; compara a linha atual do meteoro com a linha máxima
-    JZ  escolhe_comando         ; se chegar à linha máxima, não o volta a desenhar
-    MOV [POS_MET_BOM], R7       ; atualiza a linha em memória
-    MOV R8, [POS_MET_BOM+2]     ; coluna atual do meteoro bom
-    CALL desenha_boneco         ; desenha o meteoro bom na nova posição
-    JMP escolhe_comando
-
 ; ******************************************************************************
 ;   TESTA_INT0 - Testa se a interrupção 0 ocorreu e, caso tenha ocorrido, faz
 ;                descer os meteoros
 ; ******************************************************************************
 PROCESS SP_inicial_int0
 testa_int0:
+    WAIT
     MOV R0, [evento_int_bonecos]
+    MOV R1, [modo_aplicacao]
+    CMP R1, PARADO
+    JZ sai_testa_int0
     MOV R7, [POS_MET_BOM]
     MOV R8, [POS_MET_BOM+2]
     MOV R9, DEF_MET_BOM_3
@@ -482,6 +437,8 @@ testa_int0:
     INC R7
     MOV [POS_MET_BOM], R7
     CALL desenha_boneco
+sai_testa_int0:    
+    JMP testa_int0
 
 ; ******************************************************************************
 ;   TESTA_INT2 - Testa se a interrupção 2 ocorreu e, caso tenha ocorrido,
@@ -489,7 +446,11 @@ testa_int0:
 ; ******************************************************************************
 PROCESS SP_inicial_int2
 testa_int2:
+    WAIT
     MOV R0, [evento_int_bonecos+4]
+    MOV R1, [modo_aplicacao]
+    CMP R1, PARADO
+    JZ sai_testa_int2
     MOV R7, [VALOR_DISPLAY]
     CMP R7, MIN_DISPLAY                 ; verifica se atingi valor mínimo
     SUB R7, 5                      ; decrementa valor
@@ -497,7 +458,9 @@ testa_int2:
     CALL converte               ; converte valor hexadecimal para decimal
     MOV R7, [VALOR_DISPLAY+2]
     MOV [DISPLAYS], R7
-    
+sai_testa_int2:
+    JMP testa_int2
+
 ; ****************************************************************************** 
 ; ROTINAS
 ; ******************************************************************************
@@ -683,7 +646,7 @@ converte_ciclo:
 ; **********************************************************************
 rot_int_0:
 	PUSH	R1
-	MOV R1, evento_int_bonecos
+    MOV R1, evento_int_bonecos
 	MOV	[R1+0], R0	; desbloqueia processo boneco (qualquer registo serve) 
 	POP	R1
 	RFE
