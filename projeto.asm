@@ -67,8 +67,14 @@ SP_inicial_prog_princ:      ; endereço com que o SP deste processo deve ser ini
     STACK 100H              ; espaço reservado para a pilha do processo "teclado"
 SP_inicial_teclado:         ; endereço com que o SP deste processo deve ser inicializado
 
-    STACK 1000H             ; espaço reservado para a pilha do processo "escolhe_comando"
-SP_inicial_escolhe_comando: ; endereço com que o SP deste processo de ve ser inicializado
+    STACK 100H              ; espaço reservado para a pilha do processo "escolhe_comando"
+SP_inicial_escolhe_comando: ; endereço com que o SP deste processo deve ser inicializado
+
+    STACK 100H              ; espaço reservado para a pilha do processo "testa_int0"
+SP_inicial_int0:            ; endereço com que o SP deste processo deve ser inicializado
+
+    STACK 100H              ; espaço reservado para a pilha do processo "testa_int2"
+SP_inicial_int2:            ; endereço com que o SP deste processo deve ser inicializado
 
 tecla_pressionada:
     LOCK 0                 ; LOCK para o teclado comunicar aos restantes processos que tecla detetou
@@ -81,6 +87,9 @@ bloqueio:
 
 linha_a_testar:
     WORD LINHA_TEC         ; linha inicial a testar
+
+registo_int:
+    WORD 0
 
 ; ******************************* CORES ****************************************
 
@@ -189,9 +198,23 @@ POS_MET_BOM:
     WORD    LINHA_MET_BOM, COLUNA_MET_BOM
 
 ; ******************************************************************************
+
 VALOR_DISPLAY:
     WORD    64H
     WORD    100H
+
+; ******************************************************************************
+
+tab:
+	WORD rot_int_0			; rotina de atendimento da interrupção 0
+	WORD rot_int_1			; rotina de atendimento da interrupção 1
+	WORD rot_int_2			; rotina de atendimento da interrupção 2
+
+evento_int_bonecos:			; LOCKs para cada rotina de interrupção comunicar ao processo
+						; boneco respetivo que a interrupção ocorreu
+	LOCK 0				; LOCK para a rotina de interrupção 0
+	LOCK 0				; LOCK para a rotina de interrupção 1
+	LOCK 0				; LOCK para a rotina de interrupção 2
 
 ; ******************************************************************************
 ; * CODIGO
@@ -200,20 +223,26 @@ VALOR_DISPLAY:
 PLACE   0H
 
 inicio:
-    MOV SP, SP_inicial_prog_princ                  ; inicializa o SP do programa principal
+    MOV SP, SP_inicial_prog_princ       ; inicializa o SP do programa principal
+    MOV BTE, tab                        ; inicializa BTE
     MOV [APAGA_AVISO], R1	            ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
     MOV [APAGA_ECRA], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
-	MOV	R0, 0		                    ; cenário de fundo número 0
-    MOV R1, [VALOR_DISPLAY+2]           ; obter valor display decimal
-    MOV [DISPLAYS], R1                  ; inicializa display a 100
+	MOV R1, 064H
+    MOV	R0, 0H		                    ; cenário de fundo número 0
+    MOV [VALOR_DISPLAY], R1           ; obter valor display decimal
+    CALL converte                  ; inicializa display a 100
+    MOV R1, [VALOR_DISPLAY+2]
+    MOV [DISPLAYS], R1
     MOV [SELEC_CENARIO_FUNDO], R0	    ; seleciona o cenário de fundo
     MOV [modo_aplicacao], R0            ; dá reset ao modo da aplicação
-    
+    EI0
+    ;EI1
+    EI2
+    EI
     CALL teclado            ; cria o processo "teclado"
     CALL escolhe_comando    ; cria o processo "escolhe_comando"
 
 espera_inicio_jogo:
-    WAIT
     MOV R0, [tecla_pressionada]
     MOV R11, TEC_COMECAR
     XOR R11, R0
@@ -233,11 +262,11 @@ comeca_jogo:
     MOV R8, [POS_MET_BOM+2]             ; coluna do meteoro bom
     MOV R9, DEF_MET_BOM_3               ; tabela que define o meteoro bom
     CALL desenha_boneco                 ; desenha o meteoro bom
-    ;EI0
-    ;EI1
-    ;EI2
-    ;EI
     MOV [bloqueio], R1                  ; desbloqueia o processo "escolhe_comando"
+
+    CALL testa_int0         ; cria o processo "testa_int0"
+    CALL testa_int2         ; cria o processo "testa_int2"
+
 
 controla_aplicacao:
     WAIT
@@ -252,7 +281,7 @@ controla_aplicacao:
 
 pausa_continua_jogo:
     MOV R1, [modo_aplicacao]
-    CMP R1, 1
+    CMP R1, ATIVO
     JZ pausa_jogo
     JMP continua_jogo
 
@@ -293,7 +322,7 @@ termina_jogo:
     MOV [POS_MET_BOM], R2
     MOV R2, COLUNA_MET_BOM
     MOV [POS_MET_BOM+2], R2
-    JMP espera_inicio_jogo
+    JMP inicio
 
 ; ******************************************************************************
 ; PROCESSOS
@@ -351,7 +380,6 @@ reset_linha:
 PROCESS SP_inicial_escolhe_comando
 escolhe_comando:
     WAIT
-    MOV R0, [tecla_pressionada]
     MOV R1, [modo_aplicacao]
     CMP R1, PARADO
     JNZ seleciona_comando
@@ -360,7 +388,8 @@ bloqueia_escolhe_comando:
     MOV R2, [bloqueio]
     JMP escolhe_comando
     
-seleciona_comando:    
+seleciona_comando:
+    MOV R0, [tecla_pressionada]
     CMP R0, TEC_MOV_ESQ
     JZ  mover_esq                ; se for tecla '0'
     CMP R0, TEC_MOV_DIR
@@ -407,7 +436,7 @@ decrementa:
     MOV R7, [VALOR_DISPLAY]
     CMP R7, MIN_DISPLAY                 ; verifica se atingi valor mínimo
     JZ  escolhe_comando         ; se estiver no limite, não faz nada
-    DEC R7                      ; decrementa valor
+    SUB R7, 5                      ; decrementa valor
     MOV [VALOR_DISPLAY], R7
     CALL converte               ; converte valor hexadecimal para decimal
     MOV R7, [VALOR_DISPLAY+2]
@@ -440,6 +469,38 @@ baixa_meteoro:
     MOV [POS_MET_BOM], R7       ; atualiza a linha em memória
     MOV R8, [POS_MET_BOM+2]     ; coluna atual do meteoro bom
     CALL desenha_boneco         ; desenha o meteoro bom na nova posição
+    JMP escolhe_comando
+
+; ******************************************************************************
+;   TESTA_INT0 - Testa se a interrupção 0 ocorreu e, caso tenha ocorrido, faz
+;                descer os meteoros
+; ******************************************************************************
+PROCESS SP_inicial_int0
+testa_int0:
+    MOV R0, [evento_int_bonecos]
+    MOV R7, [POS_MET_BOM]
+    MOV R8, [POS_MET_BOM+2]
+    MOV R9, DEF_MET_BOM_3
+    CALL apaga_boneco
+    INC R7
+    MOV [POS_MET_BOM], R7
+    CALL desenha_boneco
+    JMP escolhe_comando
+
+; ******************************************************************************
+;   TESTA_INT2 - Testa se a interrupção 2 ocorreu e, caso tenha ocorrido,
+;                decrementa o display da energia
+; ******************************************************************************
+PROCESS SP_inicial_int2
+testa_int2:
+    MOV R0, [evento_int_bonecos+4]
+    MOV R7, [VALOR_DISPLAY]
+    CMP R7, MIN_DISPLAY                 ; verifica se atingi valor mínimo
+    SUB R7, 5                      ; decrementa valor
+    MOV [VALOR_DISPLAY], R7
+    CALL converte               ; converte valor hexadecimal para decimal
+    MOV R7, [VALOR_DISPLAY+2]
+    MOV [DISPLAYS], R7
     JMP escolhe_comando
 
 ; ****************************************************************************** 
@@ -592,7 +653,7 @@ ciclo_atraso:
     RET
 
 ; ******************************************************************************
-; CONVERSOR - Executa um ciclo para implementar um atraso.
+; CONVERSOR - Converte um valor hexadecimal para decimal
 ; ******************************************************************************
 converte:
     PUSH R0
@@ -621,3 +682,33 @@ converte_ciclo:
     POP R1
     POP R0
     RET
+
+; **********************************************************************
+; ROT_INT_0 - Rotina de atendimento da interrupção 0
+; **********************************************************************
+rot_int_0:
+	PUSH	R1
+	MOV R1, evento_int_bonecos
+	MOV	[R1+0], R0	; desbloqueia processo boneco (qualquer registo serve) 
+	POP	R1
+	RFE
+
+; **********************************************************************
+; ROT_INT_1 - Rotina de atendimento da interrupção 1
+; **********************************************************************
+rot_int_1:
+	PUSH	R1
+	MOV R1, evento_int_bonecos
+	MOV	[R1+2], R0	; desbloqueia processo boneco (qualquer registo serve) 
+	POP	R1
+	RFE
+
+; **********************************************************************
+; ROT_INT_2 - Rotina de atendimento da interrupção 2
+; **********************************************************************
+rot_int_2:
+	PUSH	R1
+	MOV R1, evento_int_bonecos
+    MOV	[R1+4], R0	; desbloqueia processo boneco (qualquer registo serve) 
+	POP	R1
+	RFE
