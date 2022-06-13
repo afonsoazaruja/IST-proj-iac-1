@@ -38,7 +38,6 @@ DIVISOR EQU 0AH
 MIN_DISPLAY EQU 0H
 MAX_DISPLAY EQU 64H
 
-
 ; ************************ Definição do MediaCenter ****************************
 
 DEFINE_LINHA        EQU 600AH      ; endereço do comando para definir a linha
@@ -85,12 +84,9 @@ bloqueio:
 linha_a_testar:
     WORD LINHA_TEC         ; linha inicial a testar
 
-registo_int:
-    WORD 0
-
 ; ******************************* CORES ****************************************
 
-CINZENTO    EQU 0A000H
+CINZENTO    EQU 0ADCDH
 VERDE       EQU 0F0F0H
 AMARELO     EQU	0FFF0H
 VERMELHO    EQU 0FF00H
@@ -115,7 +111,16 @@ COLUNA_ROVER    EQU 30          ; coluna do rover
 POS_ROVER: 
     WORD    LINHA_ROVER, COLUNA_ROVER
 
-; ******************************* Definições Gerais Meteoros *******************
+; ******************************* Constantes METEOROS **************************
+
+MET_BOM         EQU 0
+MET_MAU         EQU 130
+
+LINHA_DEF_1     EQU 0
+LINHA_DEF_2     EQU 2
+LINHA_DEF_3     EQU 5
+LINHA_DEF_4     EQU 9
+LINHA_DEF_5     EQU 14
 
 ALTURA_MET_1    EQU 1
 LARGURA_MET_1   EQU 1
@@ -132,30 +137,9 @@ LARGURA_MET_4   EQU 4
 ALTURA_MET_5    EQU 5
 LARGURA_MET_5   EQU 5
 
-DEF_MET_GERAL_1:
-    WORD    LARGURA_MET_1, ALTURA_MET_1
-    WORD    CINZENTO
+; ******************************* Definições METEOROS **************************
 
-DEF_MET_GERAL_2:
-    WORD    LARGURA_MET_2, ALTURA_MET_2
-    WORD    CINZENTO
-
-; ******************************* Definições METEOROS BONS *********************
-
-DEF_MET_BOM_1:
-    WORD    LARGURA_MET_3, ALTURA_MET_3
-    WORD    0, VERDE, 0
-    WORD    VERDE, VERDE, VERDE
-    WORD    0, VERDE, 0
-
-DEF_MET_BOM_2:
-    WORD    LARGURA_MET_4, ALTURA_MET_4
-    WORD    0, VERDE, VERDE, 0
-    WORD    VERDE, VERDE, VERDE, VERDE
-    WORD    VERDE, VERDE, VERDE, VERDE
-    WORD    0, VERDE, VERDE, 0
-
-DEF_MET_BOM_3:
+DEF_MET:
     WORD    LARGURA_MET_5, ALTURA_MET_5
     WORD    0, VERDE, VERDE, VERDE, 0
     WORD    VERDE, VERDE, VERDE, VERDE, VERDE
@@ -163,22 +147,24 @@ DEF_MET_BOM_3:
     WORD    VERDE, VERDE, VERDE, VERDE, VERDE
     WORD    0, VERDE, VERDE, VERDE, 0
 
-; ******************************* Definições METEOROS MAUS *********************
-
-DEF_MET_MAU_1:
-    WORD    LARGURA_MET_3, ALTURA_MET_3
-    WORD    VERMELHO, 0, VERMELHO
-    WORD    0, VERMELHO, 0
-    WORD    VERMELHO, 0, VERMELHO
-
-DEF_MET_MAU_2:
     WORD    LARGURA_MET_4, ALTURA_MET_4
-    WORD    VERMELHO, 0, 0, VERMELHO
-    WORD    0, VERMELHO, VERMELHO, 0
-    WORD    VERMELHO, 0, 0, VERMELHO
-    WORD    VERMELHO, 0, 0, VERMELHO
+    WORD    0, VERDE, VERDE, 0
+    WORD    VERDE, VERDE, VERDE, VERDE
+    WORD    VERDE, VERDE, VERDE, VERDE
+    WORD    0, VERDE, VERDE, 0
 
-DEF_MET_MAU_3:
+    WORD    LARGURA_MET_3, ALTURA_MET_3
+    WORD    0, VERDE, 0
+    WORD    VERDE, VERDE, VERDE
+    WORD    0, VERDE, 0
+
+    WORD    LARGURA_MET_2, ALTURA_MET_2
+    WORD    CINZENTO, CINZENTO
+    WORD    CINZENTO, CINZENTO
+
+    WORD    LARGURA_MET_1, ALTURA_MET_1
+    WORD    CINZENTO
+
     WORD    LARGURA_MET_5, ALTURA_MET_5
     WORD    VERMELHO, 0, 0, 0, VERMELHO
     WORD    VERMELHO, 0, VERMELHO, 0, VERMELHO
@@ -186,13 +172,39 @@ DEF_MET_MAU_3:
     WORD    VERMELHO, 0, VERMELHO, 0, VERMELHO
     WORD    VERMELHO, 0, 0, 0, VERMELHO
 
-; ******************************* Posições dos Meteoros (no máximo 4)***********
+    WORD    LARGURA_MET_4, ALTURA_MET_4
+    WORD    VERMELHO, 0, 0, VERMELHO
+    WORD    0, VERMELHO, VERMELHO, 0
+    WORD    VERMELHO, 0, 0, VERMELHO
+    WORD    VERMELHO, 0, 0, VERMELHO
 
-LINHA_MET_BOM   EQU 0           ; linha do meteoro bom
-COLUNA_MET_BOM  EQU 16          ; coluna do meteoro bom
+    WORD    LARGURA_MET_3, ALTURA_MET_3
+    WORD    VERMELHO, 0, VERMELHO
+    WORD    0, VERMELHO, 0
+    WORD    VERMELHO, 0, VERMELHO
 
-POS_MET_BOM:
-    WORD    LINHA_MET_BOM, COLUNA_MET_BOM
+    WORD    LARGURA_MET_2, ALTURA_MET_2
+    WORD    CINZENTO, CINZENTO
+    WORD    CINZENTO, CINZENTO
+
+    WORD    LARGURA_MET_1, ALTURA_MET_1
+    WORD    CINZENTO
+
+DEF_MET_DESTRUIDO:
+    WORD   LARGURA_MET_5, ALTURA_MET_5 
+    WORD    0, AZUL, 0, AZUL, 0
+    WORD    AZUL, 0, AZUL, 0, AZUL
+    WORD    0, AZUL, 0, AZUL, 0
+    WORD    AZUL, 0, AZUL, 0, AZUL
+    WORD    0, AZUL, 0, AZUL, 0
+
+; ******************************* Posições dos METEOROS (no máximo 4)***********
+
+LINHA_MET   EQU -1          ; linha do meteoro
+COLUNA_MET  EQU 16          ; coluna do meteoro
+
+POS_MET:
+    WORD    LINHA_MET, COLUNA_MET, MET_BOM
 
 ; ******************************************************************************
 
@@ -238,7 +250,7 @@ inicio:
     CALL energia            ; cria o processo "energia"
 
 espera_inicio_jogo:
-    MOV R1, 064H
+    MOV R1, MAX_DISPLAY
     MOV [VALOR_DISPLAY], R1           ; obter valor display decimal
     CALL converte                  ; inicializa display a 100
     MOV R1, [VALOR_DISPLAY+2]
@@ -258,10 +270,6 @@ comeca_jogo:
     MOV R8, [POS_ROVER+2]               ; coluna do rover
     MOV R9, DEF_ROVER                   ; tabela que define o rover
     CALL desenha_boneco                 ; desenha o rover
-    MOV R7, [POS_MET_BOM]               ; linha do meteoro bom
-    MOV R8, [POS_MET_BOM+2]             ; coluna do meteoro bom
-    MOV R9, DEF_MET_BOM_3               ; tabela que define o meteoro bom
-    CALL desenha_boneco                 ; desenha o meteoro bom
     MOV [bloqueio], R1                  ; desbloqueia o processo "rover"
 
 controla_aplicacao:
@@ -302,22 +310,15 @@ termina_jogo:
     MOV R1, PARADO
     MOV [modo_aplicacao], R1
     MOV [SELEC_CENARIO_FUNDO], R1
-    MOV R7, [POS_ROVER]
-    MOV R8, [POS_ROVER+2]
-    MOV R9, DEF_ROVER
-    CALL apaga_boneco
-    MOV R7, [POS_MET_BOM]
-    MOV R8, [POS_MET_BOM+2]
-    MOV R9, DEF_MET_BOM_3
-    CALL apaga_boneco
+    MOV [APAGA_ECRA], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
     MOV R2, LINHA_ROVER
     MOV [POS_ROVER], R2
     MOV R2, COLUNA_ROVER
     MOV [POS_ROVER+2], R2
-    MOV R2, LINHA_MET_BOM
-    MOV [POS_MET_BOM], R2
-    MOV R2, COLUNA_MET_BOM
-    MOV [POS_MET_BOM+2], R2
+    MOV R2, LINHA_MET
+    MOV [POS_MET], R2
+    MOV R2, COLUNA_MET
+    MOV [POS_MET+2], R2
     JMP espera_inicio_jogo
 
 ; ******************************************************************************
@@ -430,15 +431,17 @@ meteoros:
     MOV R1, [modo_aplicacao]
     CMP R1, PARADO
     JZ sai_meteoros
-    MOV R7, [POS_MET_BOM]
-    MOV R8, [POS_MET_BOM+2]
-    MOV R9, DEF_MET_BOM_3
+    MOV R7, [POS_MET]           ; linha atual
+    MOV R8, [POS_MET+2]         ; coluna atual
+    MOV R6, [POS_MET+4]         ; tipo de meteoro
+    CALL escolhe_def                ; determina qual def do boneco a usar
     CALL apaga_boneco
-    INC R7
-    MOV R10, MAX_LINHA
-    CMP R7, R10
-    JZ  sai_meteoros
-    MOV [POS_MET_BOM], R7
+    INC R7                          ; aumenta linha
+    MOV R10, MAX_LINHA              
+    CMP R7, R10                     ; verifica se chegou ao fim
+    JZ  sai_meteoros                ; se sim, não desenha mais
+    MOV [POS_MET], R7           ; atualiza linha
+    CALL escolhe_def
     CALL desenha_boneco
 sai_meteoros:    
     JMP meteoros
@@ -522,7 +525,6 @@ desenha_boneco:
     ADD	R9, 2       ; endereço da altura do boneco (2 porque a largura é uma word)
     MOV R2, [R9]    ; obtém a altura do boneco
     ADD R9, 2       ; endereço do 1º pixel
-
 desenha_pixels:       		; desenha os pixels do boneco a partir da tabela
     MOV R3, MAX_LINHA       
     CMP R7, R3              ; caso esteja na última linha do ecrã
@@ -645,6 +647,42 @@ converte_ciclo:
     POP R3
     POP R2
     POP R1
+    POP R0
+    RET
+
+; ******************************************************************************
+; ESCOLHE_DEF - Escolhe definição do boneco conforme a linha em que se encontra
+; Argumentos:  R7 - linha atual do boneco
+;              R6 - tipo de meteoro
+; Retorna:     R9 - definição adequada do boneco a usar
+; ******************************************************************************
+escolhe_def:
+    PUSH R0
+    MOV R9, DEF_MET
+    ADD R9, R6
+    MOV R0, LINHA_DEF_5
+    CMP R0, R7
+    JLE escolhe_def_saida
+    MOV R0, 54
+    ADD R9, R0
+    MOV R0, LINHA_DEF_4
+    CMP R0, R7
+    JLE escolhe_def_saida
+    MOV R0, 36
+    ADD R9, R0
+    MOV R0, LINHA_DEF_3
+    CMP R0, R7
+    JLE escolhe_def_saida
+    MOV R0, 22
+    ADD R9, R0
+    MOV R0, LINHA_DEF_2
+    CMP R0, R7
+    JLE escolhe_def_saida
+    MOV R0, 12
+    ADD R9, R0
+    MOV R0, LINHA_DEF_1
+    CMP R0, R7
+escolhe_def_saida:
     POP R0
     RET
 
