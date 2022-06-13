@@ -23,6 +23,7 @@ MASCARA    EQU 0FH     ; necessário para isolar os bits de 4-7
 
 TEC_MOV_ESQ         EQU 0           ; tecla de movimento do rover para a esquerda ('0')
 TEC_MOV_DIR         EQU 2           ; tecla de movimento do rover para a direita ('2')
+TEC_MISSIL          EQU 1           ; tecla de disparo do missil ('1')
 TEC_COMECAR         EQU 0CH         ; tecla para começar o jogo ('C')
 TEC_PAUSAR          EQU 0DH         ; tecla para suspender/continuar o jogo ('D')
 TEC_TERMINAR        EQU 0EH         ; tecla para terminar o jogo
@@ -71,6 +72,9 @@ SP_inicial_meteoros:        ; endereço com que o SP deste processo deve ser ini
 
     STACK 100H              ; espaço reservado para a pilha do processo "energia"
 SP_inicial_energia:         ; endereço com que o SP deste processo deve ser inicializado
+
+    STACK 100H              ; espaço reservado para a pilha do processo "missil"
+SP_inicial_missil:          ; endereço com que o SP deste processo deve ser inicializado
 
 tecla_pressionada:
     LOCK 0                 ; LOCK para o teclado comunicar aos restantes processos que tecla detetou
@@ -206,6 +210,17 @@ COLUNA_MET  EQU 16          ; coluna do meteoro
 POS_MET:
     WORD    LINHA_MET, COLUNA_MET, MET_BOM
 
+; ******************************* Definição Míssil *****************************
+
+DEF_MISSIL:
+    WORD 1, 1
+    WORD ROXO
+
+POS_MISSIL:
+    WORD 14, 0
+
+LINHA_MAX_MISSIL    EQU 15
+
 ; ******************************************************************************
 
 VALOR_DISPLAY:
@@ -240,13 +255,14 @@ inicio:
     MOV [SELEC_CENARIO_FUNDO], R0	    ; seleciona o cenário de fundo
     MOV [modo_aplicacao], R0            ; dá reset ao modo da aplicação
     EI0
-    ;EI1
+    EI1
     EI2
     EI
     
     CALL teclado            ; cria o processo "teclado"
     CALL rover              ; cria o processo "rover"
     CALL meteoros           ; cria o processo "meteoros"
+    CALL missil             ; cria o processo "missil"
     CALL energia            ; cria o processo "energia"
 
 espera_inicio_jogo:
@@ -391,6 +407,8 @@ movimento:
     JZ  mover_esq                ; se for tecla '0'
     CMP R0, TEC_MOV_DIR
     JZ  mover_dir                ; se for tecla '2'
+    CMP R0, TEC_MISSIL
+    JZ  dispara                  ; se for tecla '1'
     JMP rover
 
 mover_esq:
@@ -420,6 +438,21 @@ mover_dir:
     CALL atraso             ; delay de movimento
     JMP rover
 
+dispara:
+    MOV R7, [POS_ROVER]
+    DEC R7
+    MOV R8, [POS_ROVER+2]
+    ADD R8, 2
+    MOV R9, DEF_MISSIL
+    MOV R3, [POS_MISSIL]
+    MOV R4, LINHA_MAX_MISSIL
+    CMP R3, R4
+    JGT rover
+    CALL desenha_boneco
+    MOV [POS_MISSIL], R7
+    MOV [POS_MISSIL+2], R8
+    JMP rover
+
 ; ******************************************************************************
 ;   METEOROS - Testa se a interrupção 0 ocorreu e, caso tenha ocorrido, faz
 ;              descer os meteoros
@@ -447,6 +480,32 @@ sai_meteoros:
     JMP meteoros
 
 ; ******************************************************************************
+;   MÍSSIL - Controla o movimento linear do míssil, dependente da interrupção 1
+; ******************************************************************************
+PROCESS SP_inicial_missil
+missil:
+    WAIT
+    MOV R0, [evento_int_bonecos+2]
+    MOV R1, [modo_aplicacao]
+    CMP R1, PARADO
+    JZ sai_missil
+    MOV R7, [POS_MISSIL]
+    MOV R10, 14
+    CMP R7, R10
+    JZ sai_missil
+    MOV R8, [POS_MISSIL+2]
+    MOV R9, DEF_MISSIL
+    CALL apaga_boneco
+    DEC R7
+    MOV R10, LINHA_MAX_MISSIL
+    CMP R7, R10
+    JN sai_missil
+    CALL desenha_boneco
+sai_missil:
+    MOV [POS_MISSIL], R7
+    JMP missil
+
+; ******************************************************************************
 ;   ENERGIA - Testa se a interrupção 2 ocorreu e, caso tenha ocorrido,
 ;             decrementa o display da energia
 ; ******************************************************************************
@@ -459,6 +518,7 @@ energia:
     JZ sai_energia
     MOV R7, [VALOR_DISPLAY]
     CMP R7, MIN_DISPLAY                 ; verifica se atingi valor mínimo
+    JZ sai_energia
     SUB R7, 5                      ; decrementa valor
     MOV [VALOR_DISPLAY], R7
     CALL converte               ; converte valor hexadecimal para decimal
