@@ -28,8 +28,9 @@ TEC_COMECAR         EQU 0CH         ; tecla para começar o jogo ('C')
 TEC_PAUSAR          EQU 0DH         ; tecla para suspender/continuar o jogo ('D')
 TEC_TERMINAR        EQU 0EH         ; tecla para terminar o jogo
 
-ATIVO       EQU 1       ; modo ativo da aplicação
 PARADO      EQU 0       ; modo parado da aplicação
+ATIVO       EQU 1       ; modo ativo da aplicação
+PAUSA       EQU 2       ; modo pausa da aplicação
 
 ATRASO  EQU	2500H       ; atraso para limitar a velocidade de movimento do rover
 
@@ -289,6 +290,9 @@ comeca_jogo:
     MOV [bloqueio], R1                  ; desbloqueia o processo "rover"
 
 controla_aplicacao:
+    MOV R11, [modo_aplicacao]
+    CMP R11, PARADO
+    JZ espera_inicio_jogo
     WAIT
     MOV R0, [tecla_pressionada]
     MOV R11, TEC_PAUSAR
@@ -307,7 +311,7 @@ pausa_continua_jogo:
 
 pausa_jogo:
     DI
-    MOV R1, PARADO
+    MOV R1, PAUSA
     MOV [modo_aplicacao], R1
     MOV R1, 2
     MOV [SELEC_CENARIO_FUNDO], R1
@@ -394,8 +398,8 @@ PROCESS SP_inicial_rover
 rover:
     WAIT
     MOV R1, [modo_aplicacao]
-    CMP R1, PARADO
-    JNZ movimento
+    CMP R1, ATIVO
+    JZ movimento
 
 bloqueia_rover:
     MOV R2, [bloqueio]
@@ -447,7 +451,17 @@ dispara:
     MOV R3, [POS_MISSIL]
     MOV R4, LINHA_MAX_MISSIL
     CMP R3, R4
-    JGT rover
+    JNN rover
+    CALL verifica_energia
+    MOV R10, [modo_aplicacao]
+    CMP R10, ATIVO
+    JNZ rover
+    MOV R10, [VALOR_DISPLAY]
+    SUB R10, 5                      ; decrementa valor
+    MOV [VALOR_DISPLAY], R10
+    CALL converte               ; converte valor hexadecimal para decimal
+    MOV R10, [VALOR_DISPLAY+2]
+    MOV [DISPLAYS], R10
     CALL desenha_boneco
     MOV [POS_MISSIL], R7
     MOV [POS_MISSIL+2], R8
@@ -462,8 +476,8 @@ meteoros:
     WAIT
     MOV R0, [evento_int_bonecos]
     MOV R1, [modo_aplicacao]
-    CMP R1, PARADO
-    JZ sai_meteoros
+    CMP R1, ATIVO
+    JNZ sai_meteoros
     MOV R7, [POS_MET]           ; linha atual
     MOV R8, [POS_MET+2]         ; coluna atual
     MOV R6, [POS_MET+4]         ; tipo de meteoro
@@ -487,8 +501,8 @@ missil:
     WAIT
     MOV R0, [evento_int_bonecos+2]
     MOV R1, [modo_aplicacao]
-    CMP R1, PARADO
-    JZ sai_missil
+    CMP R1, ATIVO
+    JNZ sai_missil
     MOV R7, [POS_MISSIL]
     MOV R10, 14
     CMP R7, R10
@@ -514,11 +528,10 @@ energia:
     WAIT
     MOV R0, [evento_int_bonecos+4]
     MOV R1, [modo_aplicacao]
-    CMP R1, PARADO
-    JZ sai_energia
+    CMP R1, ATIVO
+    JNZ sai_energia
+    CALL verifica_energia
     MOV R7, [VALOR_DISPLAY]
-    CMP R7, MIN_DISPLAY                 ; verifica se atingi valor mínimo
-    JZ sai_energia
     SUB R7, 5                      ; decrementa valor
     MOV [VALOR_DISPLAY], R7
     CALL converte               ; converte valor hexadecimal para decimal
@@ -743,6 +756,25 @@ escolhe_def:
     MOV R0, LINHA_DEF_1
     CMP R0, R7
 escolhe_def_saida:
+    POP R0
+    RET
+
+; **********************************************************************
+; VERIFICA_ENERGIA - 
+; **********************************************************************
+verifica_energia:
+    PUSH R0
+    PUSH R1
+    MOV R0, [VALOR_DISPLAY]
+    SUB R0, 5
+    CMP R0, 0
+    JNZ sai_verifica_energia
+    MOV R1, PARADO
+    MOV [modo_aplicacao], R1
+    MOV [SELEC_CENARIO_FUNDO], R1
+    MOV [APAGA_ECRA], R1
+sai_verifica_energia:
+    POP R1
     POP R0
     RET
 
