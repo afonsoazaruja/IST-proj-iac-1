@@ -23,12 +23,14 @@ MASCARA    EQU 0FH     ; necessário para isolar os bits de 4-7
 
 TEC_MOV_ESQ         EQU 0           ; tecla de movimento do rover para a esquerda ('0')
 TEC_MOV_DIR         EQU 2           ; tecla de movimento do rover para a direita ('2')
+TEC_MISSIL          EQU 1           ; tecla de disparo do missil ('1')
 TEC_COMECAR         EQU 0CH         ; tecla para começar o jogo ('C')
 TEC_PAUSAR          EQU 0DH         ; tecla para suspender/continuar o jogo ('D')
 TEC_TERMINAR        EQU 0EH         ; tecla para terminar o jogo
 
-ATIVO       EQU 1       ; modo ativo da aplicação
 PARADO      EQU 0       ; modo parado da aplicação
+ATIVO       EQU 1       ; modo ativo da aplicação
+PAUSA       EQU 2       ; modo pausa da aplicação
 
 ATRASO  EQU	2500H       ; atraso para limitar a velocidade de movimento do rover
 
@@ -37,7 +39,6 @@ DIVISOR EQU 0AH
 
 MIN_DISPLAY EQU 0H
 MAX_DISPLAY EQU 64H
-
 
 ; ************************ Definição do MediaCenter ****************************
 
@@ -73,6 +74,9 @@ SP_inicial_meteoros:        ; endereço com que o SP deste processo deve ser ini
     STACK 100H              ; espaço reservado para a pilha do processo "energia"
 SP_inicial_energia:         ; endereço com que o SP deste processo deve ser inicializado
 
+    STACK 100H              ; espaço reservado para a pilha do processo "missil"
+SP_inicial_missil:          ; endereço com que o SP deste processo deve ser inicializado
+
 tecla_pressionada:
     LOCK 0                 ; LOCK para o teclado comunicar aos restantes processos que tecla detetou
 
@@ -85,12 +89,9 @@ bloqueio:
 linha_a_testar:
     WORD LINHA_TEC         ; linha inicial a testar
 
-registo_int:
-    WORD 0
-
 ; ******************************* CORES ****************************************
 
-CINZENTO    EQU 0A000H
+CINZENTO    EQU 0ADCDH
 VERDE       EQU 0F0F0H
 AMARELO     EQU	0FFF0H
 VERMELHO    EQU 0FF00H
@@ -115,7 +116,10 @@ COLUNA_ROVER    EQU 30          ; coluna do rover
 POS_ROVER: 
     WORD    LINHA_ROVER, COLUNA_ROVER
 
-; ******************************* Definições Gerais Meteoros *******************
+; ******************************* Constantes METEOROS **************************
+
+MET_BOM         EQU 0
+MET_MAU         EQU 130
 
 LINHA_DEF_1     EQU 0
 LINHA_DEF_2     EQU 2
@@ -138,31 +142,9 @@ LARGURA_MET_4   EQU 4
 ALTURA_MET_5    EQU 5
 LARGURA_MET_5   EQU 5
 
-DEF_MET_GERAL_1:
-    WORD    LARGURA_MET_1, ALTURA_MET_1
-    WORD    CINZENTO
+; ******************************* Definições METEOROS **************************
 
-DEF_MET_GERAL_2:
-    WORD    LARGURA_MET_2, ALTURA_MET_2
-    WORD    CINZENTO, CINZENTO
-    WORD    CINZENTO, CINZENTO
-
-; ******************************* Definições METEOROS BONS *********************
-
-DEF_MET_BOM_1:
-    WORD    LARGURA_MET_3, ALTURA_MET_3
-    WORD    0, VERDE, 0
-    WORD    VERDE, VERDE, VERDE
-    WORD    0, VERDE, 0
-
-DEF_MET_BOM_2:
-    WORD    LARGURA_MET_4, ALTURA_MET_4
-    WORD    0, VERDE, VERDE, 0
-    WORD    VERDE, VERDE, VERDE, VERDE
-    WORD    VERDE, VERDE, VERDE, VERDE
-    WORD    0, VERDE, VERDE, 0
-
-DEF_MET_BOM_3:
+DEF_MET:
     WORD    LARGURA_MET_5, ALTURA_MET_5
     WORD    0, VERDE, VERDE, VERDE, 0
     WORD    VERDE, VERDE, VERDE, VERDE, VERDE
@@ -170,22 +152,24 @@ DEF_MET_BOM_3:
     WORD    VERDE, VERDE, VERDE, VERDE, VERDE
     WORD    0, VERDE, VERDE, VERDE, 0
 
-; ******************************* Definições METEOROS MAUS *********************
-
-DEF_MET_MAU_1:
-    WORD    LARGURA_MET_3, ALTURA_MET_3
-    WORD    VERMELHO, 0, VERMELHO
-    WORD    0, VERMELHO, 0
-    WORD    VERMELHO, 0, VERMELHO
-
-DEF_MET_MAU_2:
     WORD    LARGURA_MET_4, ALTURA_MET_4
-    WORD    VERMELHO, 0, 0, VERMELHO
-    WORD    0, VERMELHO, VERMELHO, 0
-    WORD    VERMELHO, 0, 0, VERMELHO
-    WORD    VERMELHO, 0, 0, VERMELHO
+    WORD    0, VERDE, VERDE, 0
+    WORD    VERDE, VERDE, VERDE, VERDE
+    WORD    VERDE, VERDE, VERDE, VERDE
+    WORD    0, VERDE, VERDE, 0
 
-DEF_MET_MAU_3:
+    WORD    LARGURA_MET_3, ALTURA_MET_3
+    WORD    0, VERDE, 0
+    WORD    VERDE, VERDE, VERDE
+    WORD    0, VERDE, 0
+
+    WORD    LARGURA_MET_2, ALTURA_MET_2
+    WORD    CINZENTO, CINZENTO
+    WORD    CINZENTO, CINZENTO
+
+    WORD    LARGURA_MET_1, ALTURA_MET_1
+    WORD    CINZENTO
+
     WORD    LARGURA_MET_5, ALTURA_MET_5
     WORD    VERMELHO, 0, 0, 0, VERMELHO
     WORD    VERMELHO, 0, VERMELHO, 0, VERMELHO
@@ -193,13 +177,50 @@ DEF_MET_MAU_3:
     WORD    VERMELHO, 0, VERMELHO, 0, VERMELHO
     WORD    VERMELHO, 0, 0, 0, VERMELHO
 
-; ******************************* Posições dos Meteoros (no máximo 4)***********
+    WORD    LARGURA_MET_4, ALTURA_MET_4
+    WORD    VERMELHO, 0, 0, VERMELHO
+    WORD    0, VERMELHO, VERMELHO, 0
+    WORD    VERMELHO, 0, 0, VERMELHO
+    WORD    VERMELHO, 0, 0, VERMELHO
 
-LINHA_MET_BOM   EQU -1           ; linha do meteoro bom
-COLUNA_MET_BOM  EQU 16          ; coluna do meteoro bom
+    WORD    LARGURA_MET_3, ALTURA_MET_3
+    WORD    VERMELHO, 0, VERMELHO
+    WORD    0, VERMELHO, 0
+    WORD    VERMELHO, 0, VERMELHO
 
-POS_MET_BOM:
-    WORD    LINHA_MET_BOM, COLUNA_MET_BOM
+    WORD    LARGURA_MET_2, ALTURA_MET_2
+    WORD    CINZENTO, CINZENTO
+    WORD    CINZENTO, CINZENTO
+
+    WORD    LARGURA_MET_1, ALTURA_MET_1
+    WORD    CINZENTO
+
+DEF_MET_DESTRUIDO:
+    WORD   LARGURA_MET_5, ALTURA_MET_5 
+    WORD    0, AZUL, 0, AZUL, 0
+    WORD    AZUL, 0, AZUL, 0, AZUL
+    WORD    0, AZUL, 0, AZUL, 0
+    WORD    AZUL, 0, AZUL, 0, AZUL
+    WORD    0, AZUL, 0, AZUL, 0
+
+; ******************************* Posições dos METEOROS (no máximo 4)***********
+
+LINHA_MET   EQU -1          ; linha do meteoro
+COLUNA_MET  EQU 16          ; coluna do meteoro
+
+POS_MET:
+    WORD    LINHA_MET, COLUNA_MET, MET_BOM
+
+; ******************************* Definição Míssil *****************************
+
+DEF_MISSIL:
+    WORD 1, 1
+    WORD ROXO
+
+POS_MISSIL:
+    WORD 14, 0
+
+LINHA_MAX_MISSIL    EQU 15
 
 ; ******************************************************************************
 
@@ -235,13 +256,14 @@ inicio:
     MOV [SELEC_CENARIO_FUNDO], R0	    ; seleciona o cenário de fundo
     MOV [modo_aplicacao], R0            ; dá reset ao modo da aplicação
     EI0
-    ;EI1
+    EI1
     EI2
     EI
     
     CALL teclado            ; cria o processo "teclado"
     CALL rover              ; cria o processo "rover"
     CALL meteoros           ; cria o processo "meteoros"
+    CALL missil             ; cria o processo "missil"
     CALL energia            ; cria o processo "energia"
 
 espera_inicio_jogo:
@@ -268,6 +290,9 @@ comeca_jogo:
     MOV [bloqueio], R1                  ; desbloqueia o processo "rover"
 
 controla_aplicacao:
+    MOV R11, [modo_aplicacao]
+    CMP R11, PARADO
+    JZ espera_inicio_jogo
     WAIT
     MOV R0, [tecla_pressionada]
     MOV R11, TEC_PAUSAR
@@ -286,7 +311,7 @@ pausa_continua_jogo:
 
 pausa_jogo:
     DI
-    MOV R1, PARADO
+    MOV R1, PAUSA
     MOV [modo_aplicacao], R1
     MOV R1, 2
     MOV [SELEC_CENARIO_FUNDO], R1
@@ -305,22 +330,15 @@ termina_jogo:
     MOV R1, PARADO
     MOV [modo_aplicacao], R1
     MOV [SELEC_CENARIO_FUNDO], R1
-    MOV R7, [POS_ROVER]
-    MOV R8, [POS_ROVER+2]
-    MOV R9, DEF_ROVER
-    CALL apaga_boneco
-    MOV R7, [POS_MET_BOM]
-    MOV R8, [POS_MET_BOM+2]
-    MOV R9, DEF_MET_BOM_3
-    CALL apaga_boneco
+    MOV [APAGA_ECRA], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
     MOV R2, LINHA_ROVER
     MOV [POS_ROVER], R2
     MOV R2, COLUNA_ROVER
     MOV [POS_ROVER+2], R2
-    MOV R2, LINHA_MET_BOM
-    MOV [POS_MET_BOM], R2
-    MOV R2, COLUNA_MET_BOM
-    MOV [POS_MET_BOM+2], R2
+    MOV R2, LINHA_MET
+    MOV [POS_MET], R2
+    MOV R2, COLUNA_MET
+    MOV [POS_MET+2], R2
     JMP espera_inicio_jogo
 
 ; ******************************************************************************
@@ -380,8 +398,8 @@ PROCESS SP_inicial_rover
 rover:
     WAIT
     MOV R1, [modo_aplicacao]
-    CMP R1, PARADO
-    JNZ movimento
+    CMP R1, ATIVO
+    JZ movimento
 
 bloqueia_rover:
     MOV R2, [bloqueio]
@@ -393,6 +411,8 @@ movimento:
     JZ  mover_esq                ; se for tecla '0'
     CMP R0, TEC_MOV_DIR
     JZ  mover_dir                ; se for tecla '2'
+    CMP R0, TEC_MISSIL
+    JZ  dispara                  ; se for tecla '1'
     JMP rover
 
 mover_esq:
@@ -422,6 +442,31 @@ mover_dir:
     CALL atraso             ; delay de movimento
     JMP rover
 
+dispara:
+    MOV R7, [POS_ROVER]
+    DEC R7
+    MOV R8, [POS_ROVER+2]
+    ADD R8, 2
+    MOV R9, DEF_MISSIL
+    MOV R3, [POS_MISSIL]
+    MOV R4, LINHA_MAX_MISSIL
+    CMP R3, R4
+    JNN rover
+    CALL verifica_energia
+    MOV R10, [modo_aplicacao]
+    CMP R10, ATIVO
+    JNZ rover
+    MOV R10, [VALOR_DISPLAY]
+    SUB R10, 5                      ; decrementa valor
+    MOV [VALOR_DISPLAY], R10
+    CALL converte               ; converte valor hexadecimal para decimal
+    MOV R10, [VALOR_DISPLAY+2]
+    MOV [DISPLAYS], R10
+    CALL desenha_boneco
+    MOV [POS_MISSIL], R7
+    MOV [POS_MISSIL+2], R8
+    JMP rover
+
 ; ******************************************************************************
 ;   METEOROS - Testa se a interrupção 0 ocorreu e, caso tenha ocorrido, faz
 ;              descer os meteoros
@@ -431,20 +476,48 @@ meteoros:
     WAIT
     MOV R0, [evento_int_bonecos]
     MOV R1, [modo_aplicacao]
-    CMP R1, PARADO
-    JZ sai_meteoros
-    MOV R7, [POS_MET_BOM]           ; linha atual
-    MOV R8, [POS_MET_BOM+2]         ; coluna atual
+    CMP R1, ATIVO
+    JNZ sai_meteoros
+    MOV R7, [POS_MET]           ; linha atual
+    MOV R8, [POS_MET+2]         ; coluna atual
+    MOV R6, [POS_MET+4]         ; tipo de meteoro
     CALL escolhe_def                ; determina qual def do boneco a usar
     CALL apaga_boneco
     INC R7                          ; aumenta linha
     MOV R10, MAX_LINHA              
     CMP R7, R10                     ; verifica se chegou ao fim
     JZ  sai_meteoros                ; se sim, não desenha mais
-    MOV [POS_MET_BOM], R7           ; atualiza linha
+    MOV [POS_MET], R7           ; atualiza linha
+    CALL escolhe_def
     CALL desenha_boneco
 sai_meteoros:    
     JMP meteoros
+
+; ******************************************************************************
+;   MÍSSIL - Controla o movimento linear do míssil, dependente da interrupção 1
+; ******************************************************************************
+PROCESS SP_inicial_missil
+missil:
+    WAIT
+    MOV R0, [evento_int_bonecos+2]
+    MOV R1, [modo_aplicacao]
+    CMP R1, ATIVO
+    JNZ sai_missil
+    MOV R7, [POS_MISSIL]
+    MOV R10, 14
+    CMP R7, R10
+    JZ sai_missil
+    MOV R8, [POS_MISSIL+2]
+    MOV R9, DEF_MISSIL
+    CALL apaga_boneco
+    DEC R7
+    MOV R10, LINHA_MAX_MISSIL
+    CMP R7, R10
+    JN sai_missil
+    CALL desenha_boneco
+sai_missil:
+    MOV [POS_MISSIL], R7
+    JMP missil
 
 ; ******************************************************************************
 ;   ENERGIA - Testa se a interrupção 2 ocorreu e, caso tenha ocorrido,
@@ -455,10 +528,10 @@ energia:
     WAIT
     MOV R0, [evento_int_bonecos+4]
     MOV R1, [modo_aplicacao]
-    CMP R1, PARADO
-    JZ sai_energia
+    CMP R1, ATIVO
+    JNZ sai_energia
+    CALL verifica_energia
     MOV R7, [VALOR_DISPLAY]
-    CMP R7, MIN_DISPLAY                 ; verifica se atingi valor mínimo
     SUB R7, 5                      ; decrementa valor
     MOV [VALOR_DISPLAY], R7
     CALL converte               ; converte valor hexadecimal para decimal
@@ -652,29 +725,56 @@ converte_ciclo:
 
 ; ******************************************************************************
 ; ESCOLHE_DEF - Escolhe definição do boneco conforme a linha em que se encontra
+; Argumentos:  R7 - linha atual do boneco
+;              R6 - tipo de meteoro
+; Retorna:     R9 - definição adequada do boneco a usar
 ; ******************************************************************************
 escolhe_def:
     PUSH R0
-    MOV R9, DEF_MET_BOM_3
+    MOV R9, DEF_MET
+    ADD R9, R6
     MOV R0, LINHA_DEF_5
     CMP R0, R7
-    JLT escolhe_def_saida
-    MOV R9, DEF_MET_BOM_2
+    JLE escolhe_def_saida
+    MOV R0, 54
+    ADD R9, R0
     MOV R0, LINHA_DEF_4
     CMP R0, R7
-    JLT escolhe_def_saida
-    MOV R9, DEF_MET_BOM_1
+    JLE escolhe_def_saida
+    MOV R0, 36
+    ADD R9, R0
     MOV R0, LINHA_DEF_3
     CMP R0, R7
-    JLT escolhe_def_saida
-    MOV R9, DEF_MET_GERAL_2
+    JLE escolhe_def_saida
+    MOV R0, 22
+    ADD R9, R0
     MOV R0, LINHA_DEF_2
     CMP R0, R7
-    JLT escolhe_def_saida
-    MOV R9, DEF_MET_GERAL_1
+    JLE escolhe_def_saida
+    MOV R0, 12
+    ADD R9, R0
     MOV R0, LINHA_DEF_1
     CMP R0, R7
 escolhe_def_saida:
+    POP R0
+    RET
+
+; **********************************************************************
+; VERIFICA_ENERGIA - 
+; **********************************************************************
+verifica_energia:
+    PUSH R0
+    PUSH R1
+    MOV R0, [VALOR_DISPLAY]
+    SUB R0, 5
+    CMP R0, 0
+    JNZ sai_verifica_energia
+    MOV R1, PARADO
+    MOV [modo_aplicacao], R1
+    MOV [SELEC_CENARIO_FUNDO], R1
+    MOV [APAGA_ECRA], R1
+sai_verifica_energia:
+    POP R1
     POP R0
     RET
 
