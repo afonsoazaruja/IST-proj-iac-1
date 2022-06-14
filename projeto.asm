@@ -57,7 +57,7 @@ MAX_LINHA       EQU 32         ; número da linha máxima
 ; ******************************************************************************
 ; * Dados 
 ; ******************************************************************************
-PLACE 1000H
+PLACE 2000H
 
 	STACK 100H              ; espaço reservado para a pilha do processo "controlo"
 SP_inicial_controlo:        ; endereço com que o SP deste processo deve ser inicializado
@@ -124,8 +124,8 @@ MET_MAU         EQU 130
 LINHA_DEF_1     EQU 0
 LINHA_DEF_2     EQU 2
 LINHA_DEF_3     EQU 5
-LINHA_DEF_4     EQU 9
-LINHA_DEF_5     EQU 14
+LINHA_DEF_4     EQU 8
+LINHA_DEF_5     EQU 11
 
 ALTURA_MET_1    EQU 1
 LARGURA_MET_1   EQU 1
@@ -195,7 +195,7 @@ DEF_MET:
     WORD    LARGURA_MET_1, ALTURA_MET_1
     WORD    CINZENTO
 
-DEF_MET_DESTRUIDO:
+DEF_EXPLOSAO:
     WORD   LARGURA_MET_5, ALTURA_MET_5 
     WORD    0, AZUL, 0, AZUL, 0
     WORD    AZUL, 0, AZUL, 0, AZUL
@@ -209,7 +209,7 @@ LINHA_MET   EQU -1          ; linha do meteoro
 COLUNA_MET  EQU 16          ; coluna do meteoro
 
 POS_MET:
-    WORD    LINHA_MET, COLUNA_MET, MET_BOM
+    WORD    LINHA_MET, COLUNA_MET, MET_MAU
 
 ; ******************************* Definição Míssil *****************************
 
@@ -217,8 +217,11 @@ DEF_MISSIL:
     WORD 1, 1
     WORD ROXO
 
+LINHA_MISSIL    EQU 14
+COLUNA_MISSIL   EQU 0
+
 POS_MISSIL:
-    WORD 14, 0
+    WORD LINHA_MISSIL, COLUNA_MISSIL
 
 LINHA_MAX_MISSIL    EQU 15
 
@@ -254,6 +257,7 @@ inicio:
     MOV [APAGA_ECRA], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
     MOV	R0, 0		                    ; cenário de fundo número 0
     MOV [SELEC_CENARIO_FUNDO], R0	    ; seleciona o cenário de fundo
+    MOV R0, PARADO
     MOV [modo_aplicacao], R0            ; dá reset ao modo da aplicação
     EI0
     EI1
@@ -267,17 +271,17 @@ inicio:
     CALL energia            ; cria o processo "energia"
 
 espera_inicio_jogo:
-    MOV R1, MAX_DISPLAY
-    MOV [VALOR_DISPLAY], R1           ; obter valor display decimal
-    CALL converte                  ; inicializa display a 100
-    MOV R1, [VALOR_DISPLAY+2]
-    MOV [DISPLAYS], R1
     MOV R0, [tecla_pressionada]
     MOV R11, TEC_COMECAR
     XOR R11, R0
     JNZ espera_inicio_jogo
 
 comeca_jogo:
+    MOV R1, MAX_DISPLAY
+    MOV [VALOR_DISPLAY], R1           ; obter valor display decimal
+    CALL converte                  ; inicializa display a 100
+    MOV R1, [VALOR_DISPLAY+2]
+    MOV [DISPLAYS], R1
     MOV R1, ATIVO
     MOV [modo_aplicacao], R1            ; troca o modo da aplicação para ATIVO
     MOV [APAGA_ECRA], R1                ; apaga o ecrã
@@ -290,11 +294,11 @@ comeca_jogo:
     MOV [bloqueio], R1                  ; desbloqueia o processo "rover"
 
 controla_aplicacao:
+    YIELD
+    MOV R0, [tecla_pressionada]
     MOV R11, [modo_aplicacao]
     CMP R11, PARADO
     JZ espera_inicio_jogo
-    WAIT
-    MOV R0, [tecla_pressionada]
     MOV R11, TEC_PAUSAR
     XOR R11, R0
     JZ  pausa_continua_jogo         ; se a tecla pressionada for 'D'
@@ -339,6 +343,10 @@ termina_jogo:
     MOV [POS_MET], R2
     MOV R2, COLUNA_MET
     MOV [POS_MET+2], R2
+    MOV R2, LINHA_MISSIL
+    MOV [POS_MISSIL], R2
+    MOV R2, COLUNA_MISSIL
+    MOV [POS_MISSIL+2], R2
     JMP espera_inicio_jogo
 
 ; ******************************************************************************
@@ -407,6 +415,9 @@ bloqueia_rover:
     
 movimento:
     MOV R0, [tecla_pressionada]
+    MOV R1, [modo_aplicacao]
+    CMP R1, ATIVO
+    JNZ bloqueia_rover
     CMP R0, TEC_MOV_ESQ
     JZ  mover_esq                ; se for tecla '0'
     CMP R0, TEC_MOV_DIR
@@ -453,15 +464,11 @@ dispara:
     CMP R3, R4
     JNN rover
     CALL verifica_energia
+    MOV R3, -5
+    CALL altera_energia
     MOV R10, [modo_aplicacao]
     CMP R10, ATIVO
     JNZ rover
-    MOV R10, [VALOR_DISPLAY]
-    SUB R10, 5                      ; decrementa valor
-    MOV [VALOR_DISPLAY], R10
-    CALL converte               ; converte valor hexadecimal para decimal
-    MOV R10, [VALOR_DISPLAY+2]
-    MOV [DISPLAYS], R10
     CALL desenha_boneco
     MOV [POS_MISSIL], R7
     MOV [POS_MISSIL+2], R8
@@ -490,7 +497,42 @@ meteoros:
     MOV [POS_MET], R7           ; atualiza linha
     CALL escolhe_def
     CALL desenha_boneco
-sai_meteoros:    
+
+deteta_colisao_missil:
+    MOV R2, [POS_MISSIL]                ; vai detetar a colisão com o míssil
+    MOV R10, 14
+    CMP R2, R10
+    JZ  sai_meteoros
+    MOV R3, [POS_MISSIL+2]
+    MOV R4, [POS_MET]
+    ADD R4, 5
+    CMP R2, R4
+    JNZ sai_meteoros
+    MOV R4, [POS_MET+2]
+    CMP R3, R4
+    JN sai_meteoros
+    ADD R4, 5
+    CMP R3, R4
+    JN explosao
+
+deteta_colisao_rover:
+
+explosao:
+    MOV R9, DEF_EXPLOSAO
+    CALL desenha_boneco
+    MOV R7, 0
+    MOV [POS_MET], R7
+    MOV R7, [POS_MISSIL]
+    MOV R8, [POS_MISSIL+2]
+    MOV R9, DEF_MISSIL
+    CALL apaga_boneco
+    MOV R2, 14
+    MOV [POS_MISSIL], R2
+    CMP R6, MET_BOM
+    JZ sai_meteoros                     ; se for meteoro bom, sai
+    MOV R3, 5
+    CALL altera_energia
+sai_meteoros:
     JMP meteoros
 
 ; ******************************************************************************
@@ -531,12 +573,8 @@ energia:
     CMP R1, ATIVO
     JNZ sai_energia
     CALL verifica_energia
-    MOV R7, [VALOR_DISPLAY]
-    SUB R7, 5                      ; decrementa valor
-    MOV [VALOR_DISPLAY], R7
-    CALL converte               ; converte valor hexadecimal para decimal
-    MOV R7, [VALOR_DISPLAY+2]
-    MOV [DISPLAYS], R7
+    MOV R3, -5
+    CALL altera_energia
 sai_energia:
     JMP energia
 
@@ -760,7 +798,7 @@ escolhe_def_saida:
     RET
 
 ; **********************************************************************
-; VERIFICA_ENERGIA - 
+; VERIFICA_ENERGIA - Rotina que verifica se a energia chegou ao fim
 ; **********************************************************************
 verifica_energia:
     PUSH R0
@@ -773,9 +811,36 @@ verifica_energia:
     MOV [modo_aplicacao], R1
     MOV [SELEC_CENARIO_FUNDO], R1
     MOV [APAGA_ECRA], R1
+    MOV R2, LINHA_ROVER
+    MOV [POS_ROVER], R2
+    MOV R2, COLUNA_ROVER
+    MOV [POS_ROVER+2], R2
+    MOV R2, LINHA_MET
+    MOV [POS_MET], R2
+    MOV R2, COLUNA_MET
+    MOV [POS_MET+2], R2
+    MOV R2, LINHA_MISSIL
+    MOV [POS_MISSIL], R2
+    MOV R2, COLUNA_MISSIL
+    MOV [POS_MISSIL+2], R2
 sai_verifica_energia:
     POP R1
     POP R0
+    RET
+
+; **********************************************************************
+; ALTERA_ENERGIA - Altera o valor da energia do rover
+; Argumentos:      R3: valor a alterar
+; **********************************************************************
+altera_energia:
+    PUSH R7
+    MOV R7, [VALOR_DISPLAY]
+    ADD R7, R3                      ; decrementa valor
+    MOV [VALOR_DISPLAY], R7
+    CALL converte               ; converte valor hexadecimal para decimal
+    MOV R7, [VALOR_DISPLAY+2]
+    MOV [DISPLAYS], R7
+    POP R7
     RET
 
 ; **********************************************************************
