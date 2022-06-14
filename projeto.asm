@@ -32,7 +32,7 @@ PARADO      EQU 0       ; modo parado da aplicação
 ATIVO       EQU 1       ; modo ativo da aplicação
 PAUSA       EQU 2       ; modo pausa da aplicação
 
-ATRASO  EQU	2500H       ; atraso para limitar a velocidade de movimento do rover
+ATRASO_ROVER        EQU	3000H       ; atraso para limitar a velocidade de movimento do rover
 
 FATOR   EQU 3E8H
 DIVISOR EQU 0AH
@@ -436,6 +436,7 @@ mover_esq:
     DEC R8                  ; decrementa a coluna
     MOV [POS_ROVER+2], R8   ; atualiza a coluna em memória
     CALL desenha_boneco     ; desenha o rover na nova posição
+    MOV R10, ATRASO_ROVER
     CALL atraso             ; delay de movimento
     JMP rover
 
@@ -450,6 +451,7 @@ mover_dir:
     INC R8                  ; aumenta a coluna
     MOV [POS_ROVER+2], R8   ; atualiza a coluna em memória
     CALL desenha_boneco     ; desenha o rover na nova posição
+    MOV R10, ATRASO_ROVER
     CALL atraso             ; delay de movimento
     JMP rover
 
@@ -499,27 +501,29 @@ meteoros:
     CALL desenha_boneco
 
 deteta_colisao_missil:
-    MOV R2, [POS_MISSIL]                ; vai detetar a colisão com o míssil
+    MOV R2, [POS_MISSIL]                ; verifica se o missil existe
     MOV R10, 14
     CMP R2, R10
     JZ  sai_meteoros
     MOV R3, [POS_MISSIL+2]
     MOV R4, [POS_MET]
     ADD R4, 5
-    CMP R2, R4
-    JNZ sai_meteoros
+    CMP R2, R4                          ; verifica se o missil esta acima da linha maxima do meteoro
+    JGT sai_meteoros
     MOV R4, [POS_MET+2]
     CMP R3, R4
     JN sai_meteoros
     ADD R4, 5
     CMP R3, R4
     JN explosao
+    JMP sai_meteoros
 
 deteta_colisao_rover:
 
 explosao:
     MOV R9, DEF_EXPLOSAO
     CALL desenha_boneco
+    CALL apaga_boneco
     MOV R7, 0
     MOV [POS_MET], R7
     MOV R7, [POS_MISSIL]
@@ -720,10 +724,11 @@ sai_apaga_pixels:
 
 ; ******************************************************************************
 ; ATRASO - Executa um ciclo para implementar um atraso.
+; Argumentos:   R10 - Atraso a ser implementado
 ; ******************************************************************************
 atraso:
     PUSH R0
-    MOV R0, ATRASO
+    MOV R0, R10
 ciclo_atraso:
     SUB	R0, 1
     JNZ	ciclo_atraso
