@@ -53,6 +53,8 @@ SELEC_ECRA              EQU 6004H      ; endereço do comando para selecionar o 
 SELEC_CENARIO_FUNDO     EQU 6042H      ; endereço do comando para selecionar uma imagem de fundo
 REPRODUZ_SOM            EQU 605AH      ; endereço do comando para reproduzir um som
 REPRODUZ_VIDEO_LOOP     EQU 605CH      ; endereço do comando para reproduzir um video em loop
+SELEC_CENARIO_FRONTAL   EQU 6046H      ; endereço do comando para selecionar o cenário frontal a visualizar
+APAGA_CENARIO_FRONTAL   EQU 6044H      ; endereço do comando para apagar o cenário frontal
 
 MIN_COLUNA		EQU 0		   ; número da coluna mais à esquerda que o objeto pode ocupar
 MAX_COLUNA		EQU 59         ; número da coluna mais à direita que o objeto pode ocupar
@@ -352,15 +354,15 @@ pausa_jogo:
     DI                                  
     MOV R1, PAUSA
     MOV [modo_aplicacao], R1            ; Muda o modo de jogo para PAUSAS
-    MOV R1, 2                           
-    MOV [SELEC_CENARIO_FUNDO], R1       ; Muda o cenário de fundo para a tela de pausa
+    MOV R1, 4                           
+    MOV [SELEC_CENARIO_FRONTAL], R1     ; Apresenta um cenário frontal de pausa
     JMP controla_aplicacao
 
 continua_jogo:
     EI
     MOV R1, ATIVO           
     MOV [modo_aplicacao], R1            ; Muda o modo de jogo para ATIVO
-    MOV [SELEC_CENARIO_FUNDO], R1
+    MOV [APAGA_CENARIO_FRONTAL], R1     ; Apaga o cenário frontal de pausa
     MOV [bloqueio], R1                  ; Bloqueia o processo ROVER
     JMP controla_aplicacao
 
@@ -368,8 +370,9 @@ termina_jogo:
     DI
     MOV R1, PARADO
     MOV [modo_aplicacao], R1            ; Muda o modo de jogo para PARADO
-    MOV [SELEC_CENARIO_FUNDO], R1
     MOV [APAGA_ECRA], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
+    MOV R1, 3
+    MOV [SELEC_CENARIO_FUNDO], R1
     MOV R2, LINHA_ROVER                 ; procede por reinicializar as posições do rover e meteoros
     MOV [POS_ROVER], R2
     MOV R2, COLUNA_ROVER
