@@ -32,7 +32,7 @@ PARADO      EQU 0       ; modo parado da aplicação
 ATIVO       EQU 1       ; modo ativo da aplicação
 PAUSA       EQU 2       ; modo pausa da aplicação
 
-ATRASO_ROVER        EQU	3000H       ; atraso para limitar a velocidade de movimento do rover
+ATRASO_ROVER        EQU	2800H       ; atraso para limitar a velocidade de movimento do rover
 
 FATOR   EQU 3E8H
 DIVISOR EQU 0AH
@@ -195,14 +195,6 @@ DEF_MET:
     WORD    LARGURA_MET_1, ALTURA_MET_1
     WORD    CINZENTO
 
-DEF_EXPLOSAO:
-    WORD   LARGURA_MET_5, ALTURA_MET_5 
-    WORD    0, AZUL, 0, AZUL, 0
-    WORD    AZUL, 0, AZUL, 0, AZUL
-    WORD    0, AZUL, 0, AZUL, 0
-    WORD    AZUL, 0, AZUL, 0, AZUL
-    WORD    0, AZUL, 0, AZUL, 0
-
 ; ******************************* Posições dos METEOROS (no máximo 4)***********
 
 LINHA_MET   EQU -1          ; linha do meteoro
@@ -224,6 +216,19 @@ POS_MISSIL:
     WORD LINHA_MISSIL, COLUNA_MISSIL
 
 LINHA_MAX_MISSIL    EQU 15
+
+; ******************************* Definição Explosão ***************************
+
+DEF_EXPLOSAO:
+    WORD   LARGURA_MET_5, ALTURA_MET_5 
+    WORD    0, AZUL, 0, AZUL, 0
+    WORD    AZUL, 0, AZUL, 0, AZUL
+    WORD    0, AZUL, 0, AZUL, 0
+    WORD    AZUL, 0, AZUL, 0, AZUL
+    WORD    0, AZUL, 0, AZUL, 0
+
+POS_EXPLOSAO:
+    WORD 0, 0
 
 ; ******************************************************************************
 
@@ -487,6 +492,14 @@ meteoros:
     MOV R1, [modo_aplicacao]
     CMP R1, ATIVO
     JNZ sai_meteoros
+    MOV R7, [POS_EXPLOSAO]
+    CMP R7, 0
+    JZ baixa_meteoro           ; se houver explosão anterior, vai apagá-la
+    MOV R8, [POS_EXPLOSAO+2]
+    MOV R9, DEF_EXPLOSAO
+    CALL apaga_boneco
+
+baixa_meteoro:
     MOV R7, [POS_MET]           ; linha atual
     MOV R8, [POS_MET+2]         ; coluna atual
     MOV R6, [POS_MET+4]         ; tipo de meteoro
@@ -523,7 +536,8 @@ deteta_colisao_rover:
 explosao:
     MOV R9, DEF_EXPLOSAO
     CALL desenha_boneco
-    CALL apaga_boneco
+    MOV [POS_EXPLOSAO], R7
+    MOV [POS_EXPLOSAO+2], R8
     MOV R7, 0
     MOV [POS_MET], R7
     MOV R7, [POS_MISSIL]
