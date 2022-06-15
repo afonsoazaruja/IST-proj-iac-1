@@ -32,7 +32,7 @@ PARADO      EQU 0       ; modo parado da aplicação
 ATIVO       EQU 1       ; modo ativo da aplicação
 PAUSA       EQU 2       ; modo pausa da aplicação
 
-ATRASO_ROVER        EQU	2800H       ; atraso para limitar a velocidade de movimento do rover
+ATRASO_ROVER    EQU	2800H       ; atraso para limitar a velocidade de movimento do rover
 
 FATOR   EQU 3E8H
 DIVISOR EQU 0AH
@@ -40,13 +40,16 @@ DIVISOR EQU 0AH
 MIN_DISPLAY EQU 0H
 MAX_DISPLAY EQU 64H
 
-; ************************ Definição do MediaCenter ****************************
+; ****************************************************************************** 
+; * DEFINIÇÃO DO MEDIA CENTER
+; ****************************************************************************** 
 
 DEFINE_LINHA        EQU 600AH      ; endereço do comando para definir a linha
 DEFINE_COLUNA       EQU 600CH      ; endereço do comando para definir a coluna
 DEFINE_PIXEL        EQU 6012H      ; endereço do comando para escrever um pixel
 APAGA_AVISO         EQU 6040H      ; endereço do comando para apagar o aviso de nenhum cenário selecionado
 APAGA_ECRA          EQU 6002H      ; endereço do comando para apagar todos os pixels já desenhados
+SELEC_ECRA          EQU 6004H      ; endereço do comando para selecionar o ecrã onde se vai desenhar
 SELEC_CENARIO_FUNDO EQU 6042H      ; endereço do comando para selecionar uma imagem de fundo
 REPRODUZ_SOM        EQU 605AH      ; endereço do comando para reproduzir um som
 
@@ -55,9 +58,9 @@ MAX_COLUNA		EQU 59         ; número da coluna mais à direita que o objeto pode
 MAX_LINHA       EQU 32         ; número da linha máxima
 
 ; ******************************************************************************
-; * Dados 
+; * STACKS
 ; ******************************************************************************
-PLACE 2000H
+PLACE 1000H
 
 	STACK 100H              ; espaço reservado para a pilha do processo "controlo"
 SP_inicial_controlo:        ; endereço com que o SP deste processo deve ser inicializado
@@ -77,6 +80,11 @@ SP_inicial_energia:         ; endereço com que o SP deste processo deve ser ini
     STACK 100H              ; espaço reservado para a pilha do processo "missil"
 SP_inicial_missil:          ; endereço com que o SP deste processo deve ser inicializado
 
+
+; ****************************************************************************** 
+; * DADOS
+; ****************************************************************************** 
+
 tecla_pressionada:
     LOCK 0                 ; LOCK para o teclado comunicar aos restantes processos que tecla detetou
 
@@ -89,7 +97,9 @@ bloqueio:
 linha_a_testar:
     WORD LINHA_TEC         ; linha inicial a testar
 
-; ******************************* CORES ****************************************
+; ****************************************************************************** 
+; * CORES
+; ****************************************************************************** 
 
 CINZENTO    EQU 0ADCDH
 VERDE       EQU 0F0F0H
@@ -98,17 +108,19 @@ VERMELHO    EQU 0FF00H
 AZUL        EQU 0F0AFH
 ROXO        EQU 0FA0FH
 
-; ******************************** Definição ROVER *****************************
+; ****************************************************************************** 
+; * DEFINIÇÃO DO ROVER
+; ****************************************************************************** 
 
 ALTURA_ROVER    EQU 4           ; altura do rover
 LARGURA_ROVER   EQU	5	        ; largura do rover
 
-DEF_ROVER:  ; tabela que define o rover (cor, largura, pixels)
+DEF_ROVER:                                     ; tabela que define o rover (cor, largura, pixels)
 	WORD	LARGURA_ROVER, ALTURA_ROVER                             
     WORD    0 , 0, AMARELO, 0 , 0                                 ; Definição da 1ª linha da nave 
-	WORD	AMARELO, 0, AMARELO, 0, AMARELO                   ; Definição da 2ª linha da nave
-    WORD    AMARELO, AMARELO, AMARELO, AMARELO, AMARELO   ; Definição da 3ª linha da nave
-    WORD    0, AMARELO, 0, AMARELO, 0                           ; Definição da 4ª linha da nave
+	WORD	AMARELO, 0, AMARELO, 0, AMARELO                       ; Definição da 2ª linha da nave
+    WORD    AMARELO, AMARELO, AMARELO, AMARELO, AMARELO           ; Definição da 3ª linha da nave
+    WORD    0, AMARELO, 0, AMARELO, 0                             ; Definição da 4ª linha da nave
 
 LINHA_ROVER     EQU 28          ; linha do rover
 COLUNA_ROVER    EQU 30          ; coluna do rover
@@ -116,7 +128,9 @@ COLUNA_ROVER    EQU 30          ; coluna do rover
 POS_ROVER: 
     WORD    LINHA_ROVER, COLUNA_ROVER
 
-; ******************************* Constantes METEOROS **************************
+; ****************************************************************************** 
+; CONSTANTES - METEOROS
+; ****************************************************************************** 
 
 MET_BOM         EQU 0
 MET_MAU         EQU 130
@@ -142,7 +156,9 @@ LARGURA_MET_4   EQU 4
 ALTURA_MET_5    EQU 5
 LARGURA_MET_5   EQU 5
 
-; ******************************* Definições METEOROS **************************
+; ****************************************************************************** 
+; * DEFINIÇÕES DOS METEOROS
+; ****************************************************************************** 
 
 DEF_MET:
     WORD    LARGURA_MET_5, ALTURA_MET_5
@@ -195,15 +211,20 @@ DEF_MET:
     WORD    LARGURA_MET_1, ALTURA_MET_1
     WORD    CINZENTO
 
-; ******************************* Posições dos METEOROS (no máximo 4)***********
+; ****************************************************************************** 
+; POSIÇÕES DOS METEOROS (MAX 4)
+; ****************************************************************************** 
 
 LINHA_MET   EQU -1          ; linha do meteoro
 COLUNA_MET  EQU 16          ; coluna do meteoro
+ECRA_MET    EQU 1           ; ecrã do meteoro
 
 POS_MET:
-    WORD    LINHA_MET, COLUNA_MET, MET_MAU
+    WORD    LINHA_MET, COLUNA_MET, MET_BOM, ECRA_MET
 
-; ******************************* Definição Míssil *****************************
+; ****************************************************************************** 
+; * DEFINIÇÃO DO MÍSSIL
+; ****************************************************************************** 
 
 DEF_MISSIL:
     WORD 1, 1
@@ -217,7 +238,9 @@ POS_MISSIL:
 
 LINHA_MAX_MISSIL    EQU 15
 
-; ******************************* Definição Explosão ***************************
+; ****************************************************************************** 
+; * DEFINIÇÃO DA EXPLOSÃO
+; ****************************************************************************** 
 
 DEF_EXPLOSAO:
     WORD   LARGURA_MET_5, ALTURA_MET_5 
@@ -231,12 +254,16 @@ POS_EXPLOSAO:
     WORD 0, 0
 
 ; ******************************************************************************
+; * DISPLAYS
+; ****************************************************************************** 
 
 VALOR_DISPLAY:
     WORD    64H
     WORD    100H
 
 ; ******************************************************************************
+; * INTERRUPÇÕES
+; ****************************************************************************** 
 
 tab:
 	WORD rot_int_0			; rotina de atendimento da interrupção 0
@@ -276,18 +303,20 @@ inicio:
     CALL energia            ; cria o processo "energia"
 
 espera_inicio_jogo:
-    MOV R0, [tecla_pressionada]
-    MOV R11, TEC_COMECAR
-    XOR R11, R0
-    JNZ espera_inicio_jogo
+    MOV R0, [tecla_pressionada]         ; Espera por uma tecla
+    MOV R11, TEC_COMECAR                
+    XOR R11, R0                         ; Verifica se a tecla pressionada corresponde à de início
+    JNZ espera_inicio_jogo              ; Se não, contínua à espera
 
 comeca_jogo:
+    MOV R0, 0
+    MOV [SELEC_ECRA], R0                ; vai desenhar no ecrã 0
     MOV R1, MAX_DISPLAY
-    MOV [VALOR_DISPLAY], R1           ; obter valor display decimal
-    CALL converte                  ; inicializa display a 100
+    MOV [VALOR_DISPLAY], R1             ; obter valor display decimal
+    CALL converte                       ; inicializa display a 100
     MOV R1, [VALOR_DISPLAY+2]
     MOV [DISPLAYS], R1
-    MOV R1, ATIVO
+    MOV R1, ATIVO                       
     MOV [modo_aplicacao], R1            ; troca o modo da aplicação para ATIVO
     MOV [APAGA_ECRA], R1                ; apaga o ecrã
     MOV R0, 1                           ; cenário de fundo número 1
@@ -302,45 +331,45 @@ controla_aplicacao:
     YIELD
     MOV R0, [tecla_pressionada]
     MOV R11, [modo_aplicacao]
-    CMP R11, PARADO
-    JZ espera_inicio_jogo
+    CMP R11, PARADO                     ; Verifica se o jogo já não está a "correr"
+    JZ espera_inicio_jogo               ; Se sim, fica à espera que recomece
     MOV R11, TEC_PAUSAR
     XOR R11, R0
-    JZ  pausa_continua_jogo         ; se a tecla pressionada for 'D'
+    JZ  pausa_continua_jogo             ; se a tecla pressionada for 'D'
     MOV R11, TEC_TERMINAR
     XOR R11, R0
-    JZ  termina_jogo                ; se a tecla pressionada for 'E'
+    JZ  termina_jogo                    ; se a tecla pressionada for 'E'
     JMP controla_aplicacao
 
 pausa_continua_jogo:
     MOV R1, [modo_aplicacao]
-    CMP R1, ATIVO
-    JZ pausa_jogo
-    JMP continua_jogo
+    CMP R1, ATIVO                       ; Verifica se o modo de jogo é ATIVO
+    JZ pausa_jogo                       ; Se sim, pausa
+    JMP continua_jogo                   ; Se não, contínua o jogo
 
 pausa_jogo:
-    DI
+    DI                                  
     MOV R1, PAUSA
-    MOV [modo_aplicacao], R1
-    MOV R1, 2
-    MOV [SELEC_CENARIO_FUNDO], R1
+    MOV [modo_aplicacao], R1            ; Muda o modo de jogo para PAUSAS
+    MOV R1, 2                           
+    MOV [SELEC_CENARIO_FUNDO], R1       ; Muda o cenário de fundo para a tela de pausa
     JMP controla_aplicacao
 
 continua_jogo:
     EI
-    MOV R1, ATIVO
-    MOV [modo_aplicacao], R1
+    MOV R1, ATIVO           
+    MOV [modo_aplicacao], R1            ; Muda o modo de jogo para ATIVO
     MOV [SELEC_CENARIO_FUNDO], R1
-    MOV [bloqueio], R1
+    MOV [bloqueio], R1                  ; Bloqueia o processo ROVER
     JMP controla_aplicacao
 
 termina_jogo:
     DI
     MOV R1, PARADO
-    MOV [modo_aplicacao], R1
+    MOV [modo_aplicacao], R1            ; Muda o modo de jogo para PARADO
     MOV [SELEC_CENARIO_FUNDO], R1
     MOV [APAGA_ECRA], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
-    MOV R2, LINHA_ROVER
+    MOV R2, LINHA_ROVER                 ; procede por reinicializar as posições do rover e meteoros
     MOV [POS_ROVER], R2
     MOV R2, COLUNA_ROVER
     MOV [POS_ROVER+2], R2
@@ -380,7 +409,7 @@ espera_tecla:
     CALL calcula_tecla          ; vai calcular a tecla lida
     MOV [tecla_pressionada], R0 ; guarda a tecla premida em memória
 
-ha_tecla:               ; neste ciclo espera-se até nenhuma tecla estar premida
+ha_tecla:                       ; neste ciclo espera-se até nenhuma tecla estar premida
     YIELD
     CMP R0, 0
     JZ espera_tecla
@@ -390,8 +419,8 @@ ha_tecla:               ; neste ciclo espera-se até nenhuma tecla estar premida
     MOVB R2, [R4]               ; ler do periférico de entrada (colunas)
     AND R2, R5                  ; elimina bits para além dos bits 0-3
     CMP R2, 0                   ; se ler coluna nenhuma do teclado
-    JNZ ha_tecla        ; se ainda houver uma tecla premida, espera até não haver
-    JMP espera_tecla    ; volta a esperar que seja premida uma nova tecla
+    JNZ ha_tecla                ; se ainda houver uma tecla premida, espera até não haver
+    JMP espera_tecla            ; volta a esperar que seja premida uma nova tecla
 
 linha_depois:
     SHR R1, 1
@@ -410,19 +439,21 @@ reset_linha:
 PROCESS SP_inicial_rover
 rover:
     WAIT
-    MOV R1, [modo_aplicacao]
-    CMP R1, ATIVO
-    JZ movimento
+    MOV R1, [modo_aplicacao]            
+    CMP R1, ATIVO                   ; Se o jogo tiver ativo
+    JZ movimento                    ; O rover pode mover-se
 
 bloqueia_rover:
-    MOV R2, [bloqueio]
-    JMP rover
+    MOV R2, [bloqueio]              ; Caso contrario
+    JMP rover                       ; Espera q o jogo fique ativo
     
 movimento:
     MOV R0, [tecla_pressionada]
     MOV R1, [modo_aplicacao]
     CMP R1, ATIVO
     JNZ bloqueia_rover
+    MOV R10, 0
+    MOV [SELEC_ECRA], R10       ; vai desenhar no ecrã 0
     CMP R0, TEC_MOV_ESQ
     JZ  mover_esq                ; se for tecla '0'
     CMP R0, TEC_MOV_DIR
@@ -432,51 +463,51 @@ movimento:
     JMP rover
 
 mover_esq:
-    MOV R7, [POS_ROVER]     ; linha atual do rover
-    MOV R8, [POS_ROVER+2]   ; coluna atual do rover
-    MOV R9, DEF_ROVER       ; tabela que define o rover
-    CMP R8, MIN_COLUNA      ; o rover esta na coluna 0?
-    JZ  rover               ; se estiver no limite, não faz nada
-    CALL apaga_boneco       ; caso contrário, apaga o rover
-    DEC R8                  ; decrementa a coluna
-    MOV [POS_ROVER+2], R8   ; atualiza a coluna em memória
-    CALL desenha_boneco     ; desenha o rover na nova posição
+    MOV R7, [POS_ROVER]         ; linha atual do rover
+    MOV R8, [POS_ROVER+2]       ; coluna atual do rover
+    MOV R9, DEF_ROVER           ; tabela que define o rover
+    CMP R8, MIN_COLUNA          ; o rover esta na coluna 0?
+    JZ  rover                   ; se estiver no limite, não faz nada
+    CALL apaga_boneco           ; caso contrário, apaga o rover
+    DEC R8                      ; decrementa a coluna
+    MOV [POS_ROVER+2], R8       ; atualiza a coluna em memória
+    CALL desenha_boneco         ; desenha o rover na nova posição
     MOV R10, ATRASO_ROVER
-    CALL atraso             ; delay de movimento
+    CALL atraso                 ; delay de movimento
     JMP rover
 
 mover_dir:
-    MOV R7, [POS_ROVER]     ; linha atual do rover
-    MOV R8, [POS_ROVER+2]   ; coluna atual do rover
-    MOV R9, DEF_ROVER       ; tabela que define o rover
-    MOV R10, MAX_COLUNA	    ; valor maximo da coluna	
-    CMP R8, R10             ; o rover esta na coluna 64?
-    JZ  rover               ; se estiver no limite, não faz nada
-    CALL apaga_boneco       ; apaga o rover
-    INC R8                  ; aumenta a coluna
-    MOV [POS_ROVER+2], R8   ; atualiza a coluna em memória
-    CALL desenha_boneco     ; desenha o rover na nova posição
+    MOV R7, [POS_ROVER]         ; linha atual do rover
+    MOV R8, [POS_ROVER+2]       ; coluna atual do rover
+    MOV R9, DEF_ROVER           ; tabela que define o rover
+    MOV R10, MAX_COLUNA	        ; valor maximo da coluna	
+    CMP R8, R10                 ; o rover esta na coluna 64?
+    JZ  rover                   ; se estiver no limite, não faz nada
+    CALL apaga_boneco           ; apaga o rover
+    INC R8                      ; aumenta a coluna
+    MOV [POS_ROVER+2], R8       ; atualiza a coluna em memória
+    CALL desenha_boneco         ; desenha o rover na nova posição
     MOV R10, ATRASO_ROVER
-    CALL atraso             ; delay de movimento
+    CALL atraso                 ; delay de movimento
     JMP rover
 
 dispara:
     MOV R7, [POS_ROVER]
-    DEC R7
-    MOV R8, [POS_ROVER+2]
-    ADD R8, 2
+    DEC R7                      ; Linha onde o míssil vai "aparecer"
+    MOV R8, [POS_ROVER+2]       
+    ADD R8, 2                   ; Coluna onde o míssil vai "aparecer"
     MOV R9, DEF_MISSIL
     MOV R3, [POS_MISSIL]
     MOV R4, LINHA_MAX_MISSIL
-    CMP R3, R4
-    JNN rover
-    CALL verifica_energia
-    MOV R3, -5
-    CALL altera_energia
+    CMP R3, R4                  ; Se o míssil não tiver andado 12 linhas (até à linha nº 14)
+    JNN rover                   ; Não é disparado mais nenhum
+    CALL verifica_energia       ; Caso contrário
+    MOV R3, -5                  
+    CALL altera_energia         ; Diminui a energia em 5
     MOV R10, [modo_aplicacao]
     CMP R10, ATIVO
     JNZ rover
-    CALL desenha_boneco
+    CALL desenha_boneco         ; Desenha o míssil
     MOV [POS_MISSIL], R7
     MOV [POS_MISSIL+2], R8
     JMP rover
@@ -488,46 +519,48 @@ dispara:
 PROCESS SP_inicial_meteoros
 meteoros:
     WAIT
-    MOV R0, [evento_int_bonecos]
-    MOV R1, [modo_aplicacao]
-    CMP R1, ATIVO
-    JNZ sai_meteoros
-    MOV R7, [POS_EXPLOSAO]
+    MOV R0, [evento_int_bonecos]    ; Lock na interrupção 0
+    MOV R1, [modo_aplicacao]            
+    CMP R1, ATIVO                   ; Se o não jogo estiver ATIVO
+    JNZ sai_meteoros                ; Não contínua
+    MOV R10, [POS_MET+6]
+    MOV [SELEC_ECRA], R10           ; vai desenhar no ecrã especifico do meteoro
+    MOV R7, [POS_EXPLOSAO]          
     CMP R7, 0
-    JZ baixa_meteoro           ; se houver explosão anterior, vai apagá-la
+    JZ baixa_meteoro                ; se houver explosão anterior, vai apagá-la
     MOV R8, [POS_EXPLOSAO+2]
     MOV R9, DEF_EXPLOSAO
     CALL apaga_boneco
 
 baixa_meteoro:
-    MOV R7, [POS_MET]           ; linha atual
-    MOV R8, [POS_MET+2]         ; coluna atual
-    MOV R6, [POS_MET+4]         ; tipo de meteoro
+    MOV R7, [POS_MET]               ; linha atual
+    MOV R8, [POS_MET+2]             ; coluna atual
+    MOV R6, [POS_MET+4]             ; tipo de meteoro
     CALL escolhe_def                ; determina qual def do boneco a usar
     CALL apaga_boneco
     INC R7                          ; aumenta linha
     MOV R10, MAX_LINHA              
     CMP R7, R10                     ; verifica se chegou ao fim
     JZ  sai_meteoros                ; se sim, não desenha mais
-    MOV [POS_MET], R7           ; atualiza linha
+    MOV [POS_MET], R7               ; atualiza linha
     CALL escolhe_def
     CALL desenha_boneco
 
 deteta_colisao_missil:
-    MOV R2, [POS_MISSIL]                ; verifica se o missil existe
+    MOV R2, [POS_MISSIL]            ; verifica se o missil existe
     MOV R10, 14
-    CMP R2, R10
-    JZ  sai_meteoros
+    CMP R2, R10                     ; Verifica se já passou está na linha 14 (andar 12 linhas)
+    JZ  sai_meteoros                ; Se sim, sai da label para não efetuar nada
     MOV R3, [POS_MISSIL+2]
     MOV R4, [POS_MET]
-    ADD R4, 5
-    CMP R2, R4                          ; verifica se o missil esta acima da linha maxima do meteoro
-    JGT sai_meteoros
-    MOV R4, [POS_MET+2]
-    CMP R3, R4
+    ADD R4, 5                       ; Linha máxima do meteoro (mais abaixo)
+    CMP R2, R4                      ; verifica se o missil esta acima da linha maxima do meteoro
+    JGT sai_meteoros                ; Se sim não faz nada
+    MOV R4, [POS_MET+2]     
+    CMP R3, R4                      ; Verifica se a coluna mais à esquerda do meteoro é inferior à do míssil
     JN sai_meteoros
     ADD R4, 5
-    CMP R3, R4
+    CMP R3, R4                      ; Verifica se a coluna mais à direita do meteoro é superior à do míssil
     JN explosao
     JMP sai_meteoros
 
@@ -535,7 +568,7 @@ deteta_colisao_rover:
 
 explosao:
     MOV R9, DEF_EXPLOSAO
-    CALL desenha_boneco
+    CALL desenha_boneco             ; Desenha a explosão
     MOV [POS_EXPLOSAO], R7
     MOV [POS_EXPLOSAO+2], R8
     MOV R7, 0
@@ -543,11 +576,13 @@ explosao:
     MOV R7, [POS_MISSIL]
     MOV R8, [POS_MISSIL+2]
     MOV R9, DEF_MISSIL
-    CALL apaga_boneco
+    MOV R10, 0
+    MOV [SELEC_ECRA], R10           ; vai desenhar no ecrã 0
+    CALL apaga_boneco               ; Apaga o míssil
     MOV R2, 14
     MOV [POS_MISSIL], R2
     CMP R6, MET_BOM
-    JZ sai_meteoros                     ; se for meteoro bom, sai
+    JZ sai_meteoros                 ; se for meteoro bom, sai
     MOV R3, 5
     CALL altera_energia
 sai_meteoros:
@@ -559,16 +594,18 @@ sai_meteoros:
 PROCESS SP_inicial_missil
 missil:
     WAIT
-    MOV R0, [evento_int_bonecos+2]
-    MOV R1, [modo_aplicacao]
-    CMP R1, ATIVO
-    JNZ sai_missil
-    MOV R7, [POS_MISSIL]
+    MOV R0, [evento_int_bonecos+2]          ; lock na rotina de interrupção 1
+    MOV R1, [modo_aplicacao]            
+    CMP R1, ATIVO                           ; se o jogo não estiver a correr
+    JNZ sai_missil                          ; Não faz nada
+    MOV R7, [POS_MISSIL]                    ; Caso contrário
     MOV R10, 14
-    CMP R7, R10
-    JZ sai_missil
-    MOV R8, [POS_MISSIL+2]
+    CMP R7, R10                             ; Verifica se já existe algum míssil na linha 14
+    JZ sai_missil                           ; Se sim, não faz nada
+    MOV R8, [POS_MISSIL+2]                  ; Caso contrário
     MOV R9, DEF_MISSIL
+    MOV R10, 0
+    MOV [SELEC_ECRA], R10                   ; vai desenhar no ecrã 0
     CALL apaga_boneco
     DEC R7
     MOV R10, LINHA_MAX_MISSIL
@@ -586,12 +623,12 @@ sai_missil:
 PROCESS SP_inicial_energia
 energia:
     WAIT
-    MOV R0, [evento_int_bonecos+4]
+    MOV R0, [evento_int_bonecos+4]          ; lock na rotina de interrupção 2
     MOV R1, [modo_aplicacao]
-    CMP R1, ATIVO
-    JNZ sai_energia
-    CALL verifica_energia
-    MOV R3, -5
+    CMP R1, ATIVO                           ; Verifica se o jogo está a correr
+    JNZ sai_energia                         ; Se não estiver, não faz nada
+    CALL verifica_energia                   ; Caso contrário
+    MOV R3, -5                              ; Diminui em 5 a energia
     CALL altera_energia
 sai_energia:
     JMP energia
@@ -649,11 +686,11 @@ desenha_boneco:
     PUSH R7
     PUSH R8
     PUSH R9
-    MOV	R1, [R9]    ; obtém a largura do boneco
-    MOV R4, R1      ; guarda a largura do boneco
-    ADD	R9, 2       ; endereço da altura do boneco (2 porque a largura é uma word)
-    MOV R2, [R9]    ; obtém a altura do boneco
-    ADD R9, 2       ; endereço do 1º pixel
+    MOV	R1, [R9]            ; obtém a largura do boneco
+    MOV R4, R1              ; guarda a largura do boneco
+    ADD	R9, 2               ; endereço da altura do boneco (2 porque a largura é uma word)
+    MOV R2, [R9]            ; obtém a altura do boneco
+    ADD R9, 2               ; endereço do 1º pixel
 desenha_pixels:       		; desenha os pixels do boneco a partir da tabela
     MOV R3, MAX_LINHA       
     CMP R7, R3              ; caso esteja na última linha do ecrã
@@ -687,7 +724,7 @@ sai_desenha_pixels:
 ; ******************************************************************************
 escreve_pixel:
     MOV [DEFINE_LINHA], R7		; seleciona a linha
-    MOV [DEFINE_COLUNA], R8	; seleciona a coluna
+    MOV [DEFINE_COLUNA], R8	    ; seleciona a coluna
     MOV [DEFINE_PIXEL], R3		; altera a cor do pixel na linha e coluna já selecionadas
     RET
 
@@ -706,26 +743,26 @@ apaga_boneco:
     PUSH R7
     PUSH R8
     PUSH R9
-    MOV	R1, [R9]    ; obtém a largura do boneco
-    MOV R4, R1      ; guarda a largura do boneco
-    ADD	R9, 2       ; endereço da altura do boneco (2 porque a largura é uma word)
-    MOV R2, [R9]    ; obtém a altura do boneco
-    ADD R9, 2       ; endereço do 1º pixel
+    MOV	R1, [R9]        ; obtém a largura do boneco
+    MOV R4, R1          ; guarda a largura do boneco
+    ADD	R9, 2           ; endereço da altura do boneco (2 porque a largura é uma word)
+    MOV R2, [R9]        ; obtém a altura do boneco
+    ADD R9, 2           ; endereço do 1º pixel
 
-apaga_pixels:           ; desenha os pixels do boneco a partir da tabela
+apaga_pixels:               ; desenha os pixels do boneco a partir da tabela
     MOV R3, MAX_LINHA
-    CMP R7, R3          ; caso esteja na última linha do ecrã
-    JZ sai_apaga_pixels ; então para de apagar
-    MOV R3, 0           ; obtém a cor do próximo pixel do boneco
-    CALL escreve_pixel  ; escreve cada pixel do boneco
-    ADD R8, 1           ; próxima coluna
-    SUB R1, 1           ; menos uma coluna para tratar
-    JNZ apaga_pixels    ; continua até percorrer toda a largura do objeto
-    ADD R7, 1           ; próxima linha
-    MOV R1, R4          ; reset à largura a percorrer
-    SUB R8, R4          ; volta à coluna original
-    SUB R2, 1           ; menos uma linha para tratar
-    JNZ apaga_pixels    ; continua até percorrer toda a altura do objeto
+    CMP R7, R3              ; caso esteja na última linha do ecrã
+    JZ sai_apaga_pixels     ; então para de apagar
+    MOV R3, 0               ; obtém a cor do próximo pixel do boneco
+    CALL escreve_pixel      ; escreve cada pixel do boneco
+    ADD R8, 1               ; próxima coluna
+    SUB R1, 1               ; menos uma coluna para tratar
+    JNZ apaga_pixels        ; continua até percorrer toda a largura do objeto
+    ADD R7, 1               ; próxima linha
+    MOV R1, R4              ; reset à largura a percorrer
+    SUB R8, R4              ; volta à coluna original
+    SUB R2, 1               ; menos uma linha para tratar
+    JNZ apaga_pixels        ; continua até percorrer toda a altura do objeto
 sai_apaga_pixels:
     POP R9
     POP R8
@@ -788,29 +825,29 @@ converte_ciclo:
 ; ******************************************************************************
 escolhe_def:
     PUSH R0
-    MOV R9, DEF_MET
-    ADD R9, R6
-    MOV R0, LINHA_DEF_5
-    CMP R0, R7
-    JLE escolhe_def_saida
-    MOV R0, 54
+    MOV R9, DEF_MET                 
+    ADD R9, R6                      ; Escolhe o tipo de meteoro (com base na tabela definida)
+    MOV R0, LINHA_DEF_5             
+    CMP R0, R7                      ; Se está na linha (0) a mudar de definição
+    JLE escolhe_def_saida           ; Sai da rotina com a nova definição escolhida
+    MOV R0, 54                      
     ADD R9, R0
-    MOV R0, LINHA_DEF_4
+    MOV R0, LINHA_DEF_4             ; Se está na linha (2) a mudar de definição
     CMP R0, R7
     JLE escolhe_def_saida
     MOV R0, 36
     ADD R9, R0
-    MOV R0, LINHA_DEF_3
+    MOV R0, LINHA_DEF_3            ; Se está na linha (5) a mudar de definição
     CMP R0, R7
     JLE escolhe_def_saida
     MOV R0, 22
     ADD R9, R0
-    MOV R0, LINHA_DEF_2
+    MOV R0, LINHA_DEF_2            ; Se está na linha (9) a mudar de definição
     CMP R0, R7
     JLE escolhe_def_saida
     MOV R0, 12
     ADD R9, R0
-    MOV R0, LINHA_DEF_1
+    MOV R0, LINHA_DEF_1            ; Se está na linha (14) a mudar de definição
     CMP R0, R7
 escolhe_def_saida:
     POP R0
@@ -823,12 +860,12 @@ verifica_energia:
     PUSH R0
     PUSH R1
     MOV R0, [VALOR_DISPLAY]
-    SUB R0, 5
-    CMP R0, 0
-    JNZ sai_verifica_energia
-    MOV R1, PARADO
-    MOV [modo_aplicacao], R1
-    MOV [SELEC_CENARIO_FUNDO], R1
+    SUB R0, 5                           ; Retirar 5 à energia existente
+    CMP R0, 0                           ; Se não for 0
+    JNZ sai_verifica_energia            ; Sai da rotina
+    MOV R1, PARADO                      ; Se for zero
+    MOV [modo_aplicacao], R1            ; Procede por parar o jogo
+    MOV [SELEC_CENARIO_FUNDO], R1       ; E dar um "reset" ao ecrã, rover, meteoros e ao míssil
     MOV [APAGA_ECRA], R1
     MOV R2, LINHA_ROVER
     MOV [POS_ROVER], R2
@@ -856,7 +893,7 @@ altera_energia:
     MOV R7, [VALOR_DISPLAY]
     ADD R7, R3                      ; decrementa valor
     MOV [VALOR_DISPLAY], R7
-    CALL converte               ; converte valor hexadecimal para decimal
+    CALL converte                   ; converte valor hexadecimal para decimal
     MOV R7, [VALOR_DISPLAY+2]
     MOV [DISPLAYS], R7
     POP R7
@@ -868,7 +905,7 @@ altera_energia:
 rot_int_0:
 	PUSH	R1
     MOV R1, evento_int_bonecos
-	MOV	[R1+0], R0	; desbloqueia processo boneco (qualquer registo serve) 
+	MOV	[R1+0], R0	                ; desbloqueia processo boneco (qualquer registo serve) 
 	POP	R1
 	RFE
 
@@ -878,7 +915,7 @@ rot_int_0:
 rot_int_1:
 	PUSH	R1
 	MOV R1, evento_int_bonecos
-	MOV	[R1+2], R0	; desbloqueia processo boneco (qualquer registo serve) 
+	MOV	[R1+2], R0	                ; desbloqueia processo boneco (qualquer registo serve) 
 	POP	R1
 	RFE
 
@@ -888,6 +925,6 @@ rot_int_1:
 rot_int_2:
 	PUSH	R1
 	MOV R1, evento_int_bonecos
-    MOV	[R1+4], R0	; desbloqueia processo boneco (qualquer registo serve) 
+    MOV	[R1+4], R0	                ; desbloqueia processo boneco (qualquer registo serve) 
 	POP	R1
 	RFE
