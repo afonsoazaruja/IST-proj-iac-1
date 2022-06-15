@@ -44,14 +44,15 @@ MAX_DISPLAY EQU 64H
 ; * DEFINIÇÃO DO MEDIA CENTER
 ; ****************************************************************************** 
 
-DEFINE_LINHA        EQU 600AH      ; endereço do comando para definir a linha
-DEFINE_COLUNA       EQU 600CH      ; endereço do comando para definir a coluna
-DEFINE_PIXEL        EQU 6012H      ; endereço do comando para escrever um pixel
-APAGA_AVISO         EQU 6040H      ; endereço do comando para apagar o aviso de nenhum cenário selecionado
-APAGA_ECRA          EQU 6002H      ; endereço do comando para apagar todos os pixels já desenhados
-SELEC_ECRA          EQU 6004H      ; endereço do comando para selecionar o ecrã onde se vai desenhar
-SELEC_CENARIO_FUNDO EQU 6042H      ; endereço do comando para selecionar uma imagem de fundo
-REPRODUZ_SOM        EQU 605AH      ; endereço do comando para reproduzir um som
+DEFINE_LINHA            EQU 600AH      ; endereço do comando para definir a linha
+DEFINE_COLUNA           EQU 600CH      ; endereço do comando para definir a coluna
+DEFINE_PIXEL            EQU 6012H      ; endereço do comando para escrever um pixel
+APAGA_AVISO             EQU 6040H      ; endereço do comando para apagar o aviso de nenhum cenário selecionado
+APAGA_ECRA              EQU 6002H      ; endereço do comando para apagar todos os pixels já desenhados
+SELEC_ECRA              EQU 6004H      ; endereço do comando para selecionar o ecrã onde se vai desenhar
+SELEC_CENARIO_FUNDO     EQU 6042H      ; endereço do comando para selecionar uma imagem de fundo
+REPRODUZ_SOM            EQU 605AH      ; endereço do comando para reproduzir um som
+REPRODUZ_VIDEO_LOOP     EQU 605CH      ; endereço do comando para reproduzir um video em loop
 
 MIN_COLUNA		EQU 0		   ; número da coluna mais à esquerda que o objeto pode ocupar
 MAX_COLUNA		EQU 59         ; número da coluna mais à direita que o objeto pode ocupar
@@ -220,7 +221,7 @@ COLUNA_MET  EQU 16          ; coluna do meteoro
 ECRA_MET    EQU 1           ; ecrã do meteoro
 
 POS_MET:
-    WORD    LINHA_MET, COLUNA_MET, MET_BOM, ECRA_MET
+    WORD    LINHA_MET, COLUNA_MET, MET_MAU, ECRA_MET
 
 ; ****************************************************************************** 
 ; * DEFINIÇÃO DO MÍSSIL
@@ -508,6 +509,8 @@ dispara:
     CMP R10, ATIVO
     JNZ rover
     CALL desenha_boneco         ; Desenha o míssil
+    MOV R10, 1
+    MOV [REPRODUZ_SOM], R10     ; reproduz o som do disparo do míssil
     MOV [POS_MISSIL], R7
     MOV [POS_MISSIL+2], R8
     JMP rover
@@ -533,45 +536,98 @@ meteoros:
     CALL apaga_boneco
 
 baixa_meteoro:
-    MOV R7, [POS_MET]               ; linha atual
-    MOV R8, [POS_MET+2]             ; coluna atual
+    MOV R7, [POS_MET]               ; linha atual do meteoro
+    MOV R8, [POS_MET+2]             ; coluna atual do meteoro
     MOV R6, [POS_MET+4]             ; tipo de meteoro
     CALL escolhe_def                ; determina qual def do boneco a usar
     CALL apaga_boneco
     INC R7                          ; aumenta linha
     MOV R10, MAX_LINHA              
     CMP R7, R10                     ; verifica se chegou ao fim
-    JZ  sai_meteoros                ; se sim, não desenha mais
+    JZ  reinicia_linha              ; se sim, não desenha mais
     MOV [POS_MET], R7               ; atualiza linha
     CALL escolhe_def
     CALL desenha_boneco
+    JMP deteta_colisao_missil
+
+reinicia_linha:
+    MOV R7, -1
+    MOV [POS_MET], R7
+    JMP sai_meteoros
 
 deteta_colisao_missil:
     MOV R2, [POS_MISSIL]            ; verifica se o missil existe
     MOV R10, 14
     CMP R2, R10                     ; Verifica se já passou está na linha 14 (andar 12 linhas)
-    JZ  sai_meteoros                ; Se sim, sai da label para não efetuar nada
+    JZ  deteta_colisao_rover        ; Se sim, sai da label para não efetuar nada
     MOV R3, [POS_MISSIL+2]
     MOV R4, [POS_MET]
     ADD R4, 5                       ; Linha máxima do meteoro (mais abaixo)
     CMP R2, R4                      ; verifica se o missil esta acima da linha maxima do meteoro
-    JGT sai_meteoros                ; Se sim não faz nada
+    JGT deteta_colisao_rover        ; Se sim não faz nada
     MOV R4, [POS_MET+2]     
     CMP R3, R4                      ; Verifica se a coluna mais à esquerda do meteoro é inferior à do míssil
-    JN sai_meteoros
+    JN deteta_colisao_rover
     ADD R4, 5
     CMP R3, R4                      ; Verifica se a coluna mais à direita do meteoro é superior à do míssil
     JN explosao
-    JMP sai_meteoros
+
+sai_meteoros:
+    JMP meteoros
 
 deteta_colisao_rover:
+    MOV R2, [POS_ROVER]
+    MOV R4, [POS_MET]
+    ADD R4, 5
+    CMP R2, R4
+    JGE sai_meteoros
+    MOV R3, [POS_ROVER+2]
+    MOV R4, [POS_MET+2]
+    SUB R3, R4
+    CMP R3, -5
+    JLE sai_meteoros
+    CMP R3, 5
+    JGE sai_meteoros
+    MOV R10, MET_MAU            ; se chegou aqui, então colidiu com o rover
+    CMP R6, R10
+    JZ perde_jogo
+    CALL apaga_boneco
+    MOV R7, -1
+    MOV [POS_MET], R7
+    MOV R3, 10
+    CALL altera_energia
+    MOV R10, 2
+    MOV [REPRODUZ_SOM], R10
+    JMP sai_meteoros
+
+perde_jogo:
+    MOV R1, PARADO                      ; Se for zero
+    MOV [modo_aplicacao], R1            ; Procede por parar o jogo
+    MOV [APAGA_ECRA], R1                ; E dar um "reset" ao ecrã, rover, meteoros e ao míssil
+    MOV R1, 2
+    MOV [SELEC_CENARIO_FUNDO], R1
+    MOV R1, 4
+    MOV [REPRODUZ_SOM], R1
+    MOV R2, LINHA_ROVER
+    MOV [POS_ROVER], R2
+    MOV R2, COLUNA_ROVER
+    MOV [POS_ROVER+2], R2
+    MOV R2, LINHA_MET
+    MOV [POS_MET], R2
+    MOV R2, COLUNA_MET
+    MOV [POS_MET+2], R2
+    MOV R2, LINHA_MISSIL
+    MOV [POS_MISSIL], R2
+    MOV R2, COLUNA_MISSIL
+    MOV [POS_MISSIL+2], R2
+    JMP sai_meteoros
 
 explosao:
     MOV R9, DEF_EXPLOSAO
     CALL desenha_boneco             ; Desenha a explosão
     MOV [POS_EXPLOSAO], R7
     MOV [POS_EXPLOSAO+2], R8
-    MOV R7, 0
+    MOV R7, -1
     MOV [POS_MET], R7
     MOV R7, [POS_MISSIL]
     MOV R8, [POS_MISSIL+2]
@@ -585,8 +641,9 @@ explosao:
     JZ sai_meteoros                 ; se for meteoro bom, sai
     MOV R3, 5
     CALL altera_energia
-sai_meteoros:
-    JMP meteoros
+    MOV R10, 3
+    MOV [REPRODUZ_SOM], R10
+    JMP sai_meteoros
 
 ; ******************************************************************************
 ;   MÍSSIL - Controla o movimento linear do míssil, dependente da interrupção 1
@@ -865,8 +922,11 @@ verifica_energia:
     JNZ sai_verifica_energia            ; Sai da rotina
     MOV R1, PARADO                      ; Se for zero
     MOV [modo_aplicacao], R1            ; Procede por parar o jogo
-    MOV [SELEC_CENARIO_FUNDO], R1       ; E dar um "reset" ao ecrã, rover, meteoros e ao míssil
-    MOV [APAGA_ECRA], R1
+    MOV [APAGA_ECRA], R1                ; E dar um "reset" ao ecrã, rover, meteoros e ao míssil
+    MOV R1, 2
+    MOV [SELEC_CENARIO_FUNDO], R1
+    MOV R1, 4
+    MOV [REPRODUZ_SOM], R1
     MOV R2, LINHA_ROVER
     MOV [POS_ROVER], R2
     MOV R2, COLUNA_ROVER
@@ -897,6 +957,28 @@ altera_energia:
     MOV R7, [VALOR_DISPLAY+2]
     MOV [DISPLAYS], R7
     POP R7
+    RET
+
+; **********************************************************************
+; MET_ALEATORIO - Calcula um valor pseudo-aleatório para a coluna de um
+;                 meteoro e determina o seu tipo
+; Retorna:        R2: valor para a coluna
+;                 R3: tipo de meteoro
+; **********************************************************************
+met_aleatorio:
+    PUSH R1
+    MOV R1, [TEC_COL]
+    SHR R1, 5
+    MOV R2, 8
+    MUL R2, R1
+    CMP R1, 6
+    JGE define_met_bom
+    MOV R3, MET_MAU
+    JMP sai_met_aleatorio
+define_met_bom:
+    MOV R3, MET_BOM
+sai_met_aleatorio:
+    POP R1
     RET
 
 ; **********************************************************************
