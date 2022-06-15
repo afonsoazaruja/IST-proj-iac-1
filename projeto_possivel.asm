@@ -394,6 +394,7 @@ termina_jogo:
     MOV R1, PARADO
     MOV [modo_aplicacao], R1            ; Muda o modo de jogo para PARADO
     MOV [APAGA_ECRA], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
+    MOV [APAGA_CENARIO_FRONTAL], R1     ; Apaga o cenário frontal de pausa
     MOV R1, 3
     MOV [SELEC_CENARIO_FUNDO], R1
     MOV R2, LINHA_ROVER                 ; procede por reinicializar as posições do rover e meteoros
@@ -556,8 +557,8 @@ meteoros_ciclo:
     MOV R1, [modo_aplicacao]            
     CMP R1, ATIVO                   ; Se o não jogo estiver ATIVO
     JNZ sai_meteoros                ; Não contínua
-    MOV R10, [R10+6]
-    MOV [SELEC_ECRA], R10           ; vai desenhar no ecrã especifico do meteoro
+    MOV R11, [R10+6]
+    MOV [SELEC_ECRA], R11           ; vai desenhar no ecrã especifico do meteoro
     MOV R7, [POS_EXPLOSAO]          
     CMP R7, 0
     JZ baixa_meteoro                ; se houver explosão anterior, vai apagá-la
@@ -572,8 +573,8 @@ baixa_meteoro:
     CALL escolhe_def                ; determina qual def do boneco a usar
     CALL apaga_boneco
     INC R7                          ; aumenta linha
-    MOV R10, MAX_LINHA              
-    CMP R7, R10                     ; verifica se chegou ao fim
+    MOV R11, MAX_LINHA              
+    CMP R7, R11                     ; verifica se chegou ao fim
     JZ  reinicia_linha              ; se sim, não desenha mais
     MOV [R10], R7               ; atualiza linha
     CALL escolhe_def
@@ -583,12 +584,15 @@ baixa_meteoro:
 reinicia_linha:
     MOV R7, -1
     MOV [R10], R7
+    CALL met_aleatorio
+    MOV [R10+2], R2
+    MOV [R10+4], R3
     JMP sai_meteoros
 
 deteta_colisao_missil:
     MOV R2, [POS_MISSIL]            ; verifica se o missil existe
-    MOV R10, 14
-    CMP R2, R10                     ; Verifica se já passou está na linha 14 (andar 12 linhas)
+    MOV R11, 14
+    CMP R2, R11                     ; Verifica se já passou está na linha 14 (andar 12 linhas)
     JZ  deteta_colisao_rover        ; Se sim, sai da label para não efetuar nada
     MOV R3, [POS_MISSIL+2]
     MOV R4, [R10]
@@ -618,16 +622,19 @@ deteta_colisao_rover:
     JLE sai_meteoros
     CMP R3, 5
     JGE sai_meteoros
-    MOV R10, MET_MAU            ; se chegou aqui, então colidiu com o rover
-    CMP R6, R10
+    MOV R11, MET_MAU            ; se chegou aqui, então colidiu com o rover
+    CMP R6, R11
     JZ perde_jogo
     CALL apaga_boneco
     MOV R7, -1
     MOV [R10], R7
+    CALL met_aleatorio
+    MOV [R10+2], R2
+    MOV [R10+4], R3
     MOV R3, 10
     CALL altera_energia
-    MOV R10, 2
-    MOV [REPRODUZ_SOM], R10
+    MOV R11, 2
+    MOV [REPRODUZ_SOM], R11
     JMP sai_meteoros
 
 perde_jogo:
@@ -656,11 +663,14 @@ explosao:
     MOV [POS_EXPLOSAO+2], R8
     MOV R7, -1
     MOV [R10], R7
+    CALL met_aleatorio
+    MOV [R10+2], R2
+    MOV [R10+4], R3
     MOV R7, [POS_MISSIL]
     MOV R8, [POS_MISSIL+2]
     MOV R9, DEF_MISSIL
-    MOV R10, 0
-    MOV [SELEC_ECRA], R10           ; vai desenhar no ecrã 0
+    MOV R11, 0
+    MOV [SELEC_ECRA], R11           ; vai desenhar no ecrã 0
     CALL apaga_boneco               ; Apaga o míssil
     MOV R2, 14
     MOV [POS_MISSIL], R2
@@ -668,8 +678,8 @@ explosao:
     JZ sai_meteoros                 ; se for meteoro bom, sai
     MOV R3, 5
     CALL altera_energia
-    MOV R10, 3
-    MOV [REPRODUZ_SOM], R10
+    MOV R11, 3
+    MOV [REPRODUZ_SOM], R11
     JMP sai_meteoros
 
 ; ******************************************************************************
@@ -974,12 +984,19 @@ sai_verifica_energia:
 ; **********************************************************************
 altera_energia:
     PUSH R7
+    PUSH R8
     MOV R7, [VALOR_DISPLAY]
-    ADD R7, R3                      ; decrementa valor
+    ADD R7, R3                      ; altera valor
+    MOV R8, MAX_DISPLAY
+    CMP R7, R8
+    JLE sai_altera_energia
+    MOV R7, 100
+sai_altera_energia:
     MOV [VALOR_DISPLAY], R7
     CALL converte                   ; converte valor hexadecimal para decimal
     MOV R7, [VALOR_DISPLAY+2]
     MOV [DISPLAYS], R7
+    POP R8
     POP R7
     RET
 
@@ -990,8 +1007,11 @@ altera_energia:
 ;                 R3: tipo de meteoro
 ; **********************************************************************
 met_aleatorio:
+    PUSH R0
     PUSH R1
+    MOV R0, 0F0H
     MOV R1, [TEC_COL]
+    AND R1, R0
     SHR R1, 5
     MOV R2, 8
     MUL R2, R1
@@ -1003,6 +1023,7 @@ define_met_bom:
     MOV R3, MET_BOM
 sai_met_aleatorio:
     POP R1
+    POP R0
     RET
 
 ; **********************************************************************
@@ -1011,20 +1032,22 @@ sai_met_aleatorio:
 inicializa_meteoros:
     PUSH R0
     PUSH R1
+    PUSH R2
     PUSH R11
-    MOV R0, 24
+    MOV R0, 3
+    MOV R2, 8
+    MOV R11, POS_MET
 inicializa_meteoros_ciclo:
     CALL met_aleatorio          ; inicializa um meteoro
-    MOV R11, POS_MET
     MOV R1, -1
     MOV [R11], R1
     MOV [R11+2], R2
     MOV [R11+4], R3
-    MOV R1, 8
-    ADD R11, R1                 ; passa para o próximo meteoro                
-    CMP R11, R0
+    ADD R11, R2                 ; passa para o próximo meteoro                
+    DEC R0
     JNZ inicializa_meteoros_ciclo
     POP R11
+    POP R2
     POP R1
     POP R0
     RET
