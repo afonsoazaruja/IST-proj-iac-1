@@ -1010,12 +1010,21 @@ sai_altera_energia:
 met_aleatorio:
     PUSH R0
     PUSH R1
+    PUSH R10
+    MOV R10, 1
+met_aleatorio_numero:               ; escolhe um número aleatório
     MOV R0, 0F0H
     MOV R1, [TEC_COL]
     AND R1, R0
     SHR R1, 5
+    CMP R10, 0
+    JZ met_aleatorio_tipo
+met_aleatorio_coluna:               ; decide a sua coluna
     MOV R2, 8
     MUL R2, R1
+    DEC R10
+    JMP met_aleatorio_numero
+met_aleatorio_tipo:                 ; decide o seu tipo
     CMP R1, 6
     JGE define_met_bom
     MOV R3, MET_MAU
@@ -1023,6 +1032,7 @@ met_aleatorio:
 define_met_bom:
     MOV R3, MET_BOM
 sai_met_aleatorio:
+    POP R10
     POP R1
     POP R0
     RET
