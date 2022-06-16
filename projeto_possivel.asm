@@ -691,6 +691,7 @@ missil:
     MOV R0, [evento_int_bonecos+2]          ; lock na rotina de interrupção 1
     MOV R1, [modo_aplicacao]            
     CMP R1, ATIVO                           ; se o jogo não estiver a correr
+    MOV R7, 14
     JNZ sai_missil                          ; Não faz nada
     MOV R7, [POS_MISSIL]                    ; Caso contrário
     MOV R10, 14
