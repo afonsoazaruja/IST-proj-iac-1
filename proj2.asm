@@ -32,7 +32,7 @@ PARADO      EQU 0       ; modo parado da aplicação
 ATIVO       EQU 1       ; modo ativo da aplicação
 PAUSA       EQU 2       ; modo pausa da aplicação
 
-ATRASO_ROVER    EQU	2800H       ; atraso para limitar a velocidade de movimento do rover
+ATRASO_ROVER    EQU	3200H       ; atraso para limitar a velocidade de movimento do rover
 
 FATOR   EQU 3E8H
 DIVISOR EQU 0AH
@@ -303,6 +303,7 @@ inicio:
     MOV BTE, tab                        ; inicializa BTE
     MOV [APAGA_AVISO], R1	            ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
     MOV [APAGA_ECRA], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
+    MOV [APAGA_CENARIO_FRONTAL], R1     ; Apaga o cenário frontal de pausa
     MOV R0, PARADO
     MOV [modo_aplicacao], R0            ; dá reset ao modo da aplicação
     MOV	R0, 0		                    ; cenário de fundo número 0
@@ -363,7 +364,12 @@ controla_aplicacao:
     MOV R0, [tecla_pressionada]
     MOV R11, [modo_aplicacao]
     CMP R11, PARADO                     ; Verifica se o jogo já não está a "correr"
-    JZ espera_inicio_jogo               ; Se sim, fica à espera que recomece
+    JNZ pausa_e_termina
+    MOV R11, TEC_COMECAR
+    XOR R11, R0
+    JZ  comeca_jogo
+    JMP espera_inicio_jogo              ; Se sim, fica à espera que recomece
+pausa_e_termina:
     MOV R11, TEC_PAUSAR
     XOR R11, R0
     JZ  pausa_continua_jogo             ; se a tecla pressionada for 'D'
@@ -398,6 +404,7 @@ termina_jogo:
     DI
     MOV R1, 3
     MOV [SELEC_CENARIO_FUNDO], R1
+    MOV [APAGA_CENARIO_FRONTAL], R1     ; Apaga o cenário frontal de pausa
     CALL fim_de_jogo
     CALL inicializa_meteoros
     JMP espera_inicio_jogo
@@ -678,7 +685,6 @@ missil:
     MOV R0, [evento_int_bonecos+2]          ; lock na rotina de interrupção 1
     MOV R1, [modo_aplicacao]            
     CMP R1, ATIVO                           ; se o jogo não estiver a correr
-    MOV R7, 14
     JNZ sai_missil                          ; Não faz nada
     MOV R7, [POS_MISSIL]                    ; Caso contrário
     MOV R10, 14
@@ -692,10 +698,11 @@ missil:
     DEC R7
     MOV R10, LINHA_MAX_MISSIL
     CMP R7, R10
-    JN sai_missil
+    JN altera_valor_linha
     CALL desenha_boneco
-sai_missil:
+altera_valor_linha:
     MOV [POS_MISSIL], R7
+sai_missil:
     JMP missil
 
 ; ******************************************************************************
@@ -1034,7 +1041,7 @@ inicializa_meteoros:
     PUSH R3
     PUSH R4
     PUSH R11
-    MOV R0, 3
+    MOV R0, 4
     MOV R1, -1
     MOV R4, 8
     MOV R11, POS_MET
