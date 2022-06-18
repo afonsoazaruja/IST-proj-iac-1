@@ -646,11 +646,11 @@ deteta_colisao_rover:
     JMP sai_meteoros
 
 perde_jogo:
+    MOV R1, 0
+    MOV [TERMINA_VIDEO], R1
     CALL fim_de_jogo
     MOV R1, 4
     MOV [REPRODUZ_SOM], R1
-    MOV R1, 0
-    MOV [TERMINA_VIDEO], R1
     MOV R1, 2
     MOV [SELEC_CENARIO_FUNDO], R1
     CALL inicializa_meteoros
