@@ -32,7 +32,7 @@ PARADO      EQU 0       ; modo parado da aplicação
 ATIVO       EQU 1       ; modo ativo da aplicação
 PAUSA       EQU 2       ; modo pausa da aplicação
 
-ATRASO_ROVER    EQU	3200H       ; atraso para limitar a velocidade de movimento do rover
+ATRASO_ROVER    EQU	3000H       ; atraso para limitar a velocidade de movimento do rover
 
 FATOR   EQU 3E8H            ; fator e divisor utilizados na conversão
 DIVISOR EQU 0AH             ; de 
